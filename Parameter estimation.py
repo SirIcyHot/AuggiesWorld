@@ -1,6 +1,6 @@
 import numpy as np
 from gekko import GEKKO
-# editing
+
 # load data
 xm = np.array([18.3447,79.86538,85.09788,10.5211,44.4556, \
                69.567,8.960,86.197,66.857,16.875, \
