@@ -1,0 +1,5 @@
+scipy.optimize: This is a module in the SciPy library that provides a variety of optimization algorithms for solving nonlinear optimization problems.
+cvxpy: This is a package that provides a modeling language for convex optimization problems, and it has interfaces to several solvers including CVXOPT, ECOS, and SCS.
+gekko: This is a package that provides a modeling language for linear, nonlinear, and mixed integer programming problems, and it has interfaces to several solvers including IPOPT, APOPT, and BPOPT.
+pygmo: This is a package that provides a variety of optimization algorithms for global optimization, including genetic algorithms, particle swarm optimization, and simulated annealing.
+PyOpt: This is a package that provides a variety of optimization algorithms for solving nonlinear optimization problems, including gradient-based and derivative-free methods.
