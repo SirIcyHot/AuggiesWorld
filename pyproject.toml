@@ -8,4 +8,5 @@ dependencies = [
     "gekko>=1.3.2",
     "matplotlib>=3.10.8",
     "numpy>=2.4.4",
+    "scipy>=1.17.0",
 ]

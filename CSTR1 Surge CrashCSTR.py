@@ -50,8 +50,8 @@ params_cstr1 = {
 params_surge = {
     "F_in": params_cstr1["F"],
     "V": 10.0,
-    "V0": 2.0,
-    "t_open": 0.8 * (10.0 - 2.0) / params_cstr1["F"],
+    "V0": 0.0,
+    "t_open": 0.8 * 10.0 / params_cstr1["F"],
     "rho_ref": 995.0,
     "Cp": params_cstr1["Cp"],
     "species_rho": params_cstr1["species_rho"],
@@ -169,10 +169,11 @@ def surge_tank_model(t, y, p, inlet_interp):
     F_in = p["F_in"]
     F_out = F_in if t >= p["t_open"] else 0.0
 
-    if V <= 1e-9:
-        return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
     dV_dt = F_in - F_out
+    
+    # Allow tank to fill from empty; only skip concentration updates if V is negligible
+    if V <= 1e-9:
+        return [dV_dt, C_H_in, C_N_in, C_W_in, C_A_in, T_in]
     dC_H_dt = (F_in / V) * (C_H_in - C_H)
     dC_N_dt = (F_in / V) * (C_N_in - C_N)
     dC_W_dt = (F_in / V) * (C_W_in - C_W)
@@ -230,7 +231,7 @@ def crash_tank_model(t, y, p, inlet_interp, t_open):
     # solid accumulation (moles of A solid)
     dS_dt = r_p * p["V"]
 
-    # energy balance (no heat of precipitation included here)
+    # energy balance (TODO no heat of precipitation included here, and no jacket?)
     rho_mix = crash_mixture_density(C_H, C_N, C_W, C_A, S, p, p["V"])
     dT_dt = (F_tot / p["V"]) * (Tf - T) - (p["UA"] / (rho_mix * p["Cp"] * p["V"])) * (T - p["Tc"])
 
@@ -275,7 +276,8 @@ sol_cstr1 = solve_ivp(
 C_H_cstr1, C_N_cstr1, C_W_cstr1, C_A_cstr1, T_cstr1 = sol_cstr1.y
 t = sol_cstr1.t
 Tc_cstr1 = np.full_like(t, params_cstr1["Tc"])
-X_H_cstr1 = (params_cstr1["C_Hf"] - C_H_cstr1) / params_cstr1["C_Hf"]
+# Use A formation relative to the initial H feed so the conversion plot tracks product formation.
+X_A_cstr1 = C_A_cstr1 / params_cstr1["C_Hf"]
 rho_cstr1 = np.array([
     cstr1_density(ch, cn, cw, ca, params_cstr1)
     for ch, cn, cw, ca in zip(C_H_cstr1, C_N_cstr1, C_W_cstr1, C_A_cstr1)
@@ -352,6 +354,7 @@ sol_crash = solve_ivp(
 
 # Extract crash tank results
 C_H_crash, C_N_crash, C_W_crash, C_A_crash, T_crash, S_crash = sol_crash.y
+Tc_crash = np.full_like(sol_crash.t, params_crash["Tc"])
 
 # Compute solid loading/content% by mass
 V_m3 = params_crash['V'] / 1000.0
@@ -386,10 +389,10 @@ ax1[1].set_title("CSTR1: Concentrations vs Time")
 ax1[1].grid(True, alpha=0.3)
 ax1[1].legend()
 
-ax1[2].plot(t, X_H_cstr1, color="black", label="Conversion of H (CSTR1)")
+ax1[2].plot(t, X_A_cstr1, color="black", label="Conversion of A (CSTR1)")
 ax1[2].set_xlabel("Time (s)")
 ax1[2].set_ylabel("Conversion")
-ax1[2].set_title("CSTR1: Conversion vs Time")
+ax1[2].set_title("CSTR1: A Conversion vs Time")
 ax1[2].set_ylim(0, 1.05)
 ax1[2].grid(True, alpha=0.3)
 ax1[2].legend()
@@ -444,6 +447,7 @@ ax3[1].grid(True, alpha=0.3)
 ax3[1].legend()
 
 ax3[2].plot(sol_crash.t, T_crash, label='T (crash)')
+ax3[2].plot(sol_crash.t, Tc_crash, '--', label='T_c (jacket)')
 ax3[2].set_xlabel('Time (s)')
 ax3[2].set_ylabel('Temperature (K)')
 ax3[2].set_title('Crash Tank: Temperature vs Time')
