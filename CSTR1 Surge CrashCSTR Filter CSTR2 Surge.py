@@ -1,4 +1,17 @@
-#Created by Augustus Sison on 2024-06-05
+"""Multi-unit process simulation:
+1. CSTR1 -> 2. Surge1 -> 3. Crash tank -> 4. Continuous filter -> 5. CSTR2 -> 6. Surge2.
+
+Units used in this script:
+- Flow rates: L/s
+- Volumes: L
+- Concentrations: mol/L
+- Temperature: K
+- Solids inventories: mol or mol/L depending on the state definition
+- Heat transfer: J/(s*K)
+- Heat of reaction: J/mol
+"""
+
+# Created by Augustus Sison on 2024-06-05
 
 
 # TODO: replace the static density values with temperature-dependent density correlations for each unit.
@@ -168,6 +181,11 @@ def crash_mixture_density(c_h, c_n, c_w, c_a, solid_moles_a, p, tank_volume_l):
     bulk_density = (liquid_mass + solid_mass) / max(tank_volume_l / 1000.0, 1e-12)
 
     return bulk_density
+
+
+def tail_mean(series, n_tail):
+    """Return the mean of the last n_tail points from a 1D numeric series."""
+    return float(np.mean(series[-n_tail:]))
 
 # -----------------------------
 # CSTR1 model
@@ -757,40 +775,40 @@ plt.tight_layout()
 n_ss = max(1, int(0.2 * len(sol_cstr1.t)))
 
 # CSTR1 outlet (steady state)
-c_h_cstr1_ss = np.mean(C_H_cstr1[-n_ss:])
-c_n_cstr1_ss = np.mean(C_N_cstr1[-n_ss:])
-c_w_cstr1_ss = np.mean(C_W_cstr1[-n_ss:])
-c_a_cstr1_ss = np.mean(C_A_cstr1[-n_ss:])
-t_cstr1_ss = np.mean(T_cstr1[-n_ss:])
+c_h_cstr1_ss = tail_mean(C_H_cstr1, n_ss)
+c_n_cstr1_ss = tail_mean(C_N_cstr1, n_ss)
+c_w_cstr1_ss = tail_mean(C_W_cstr1, n_ss)
+c_a_cstr1_ss = tail_mean(C_A_cstr1, n_ss)
+t_cstr1_ss = tail_mean(T_cstr1, n_ss)
 
-# Surge tank outlet (steady state)
-c_h_surge1_ss = np.mean(C_H_surge1[-n_ss:])
-c_n_surge1_ss = np.mean(C_N_surge1[-n_ss:])
-c_w_surge1_ss = np.mean(C_W_surge1[-n_ss:])
-c_a_surge1_ss = np.mean(C_A_surge1[-n_ss:])
-t_surge1_ss = np.mean(T_surge1[-n_ss:])
+# Surge1 outlet (steady state)
+c_h_surge1_ss = tail_mean(C_H_surge1, n_ss)
+c_n_surge1_ss = tail_mean(C_N_surge1, n_ss)
+c_w_surge1_ss = tail_mean(C_W_surge1, n_ss)
+c_a_surge1_ss = tail_mean(C_A_surge1, n_ss)
+t_surge1_ss = tail_mean(T_surge1, n_ss)
 
-# Crash tank outlet (steady state)
-c_h_crash_ss = np.mean(C_H_crash[-n_ss:])
-c_n_crash_ss = np.mean(C_N_crash[-n_ss:])
-c_w_crash_ss = np.mean(C_W_crash[-n_ss:])
-c_a_crash_ss = np.mean(C_A_crash[-n_ss:])
-s_crash_ss = np.mean(S_crash[-n_ss:])
-t_crash_ss = np.mean(T_crash[-n_ss:])
+# Crash outlet (steady state)
+c_h_crash_ss = tail_mean(C_H_crash, n_ss)
+c_n_crash_ss = tail_mean(C_N_crash, n_ss)
+c_w_crash_ss = tail_mean(C_W_crash, n_ss)
+c_a_crash_ss = tail_mean(C_A_crash, n_ss)
+s_crash_ss = tail_mean(S_crash, n_ss)
+t_crash_ss = tail_mean(T_crash, n_ss)
 
-# Filter outlet (main stream, steady state)
-filt_c_h_main_ss = np.mean(filter_C_H_main_series[-n_ss:])
-filt_c_n_main_ss = np.mean(filter_C_N_main_series[-n_ss:])
-filt_c_w_main_ss = np.mean(filter_C_W_main_series[-n_ss:])
-filt_c_a_main_ss = np.mean(filter_C_A_main_series[-n_ss:])
-filt_s_main_ss = np.mean(filter_S_main_series[-n_ss:])
-filt_aa_main_ss = np.mean(filter_AA_main_series[-n_ss:])
+# Filter main outlet (steady state)
+filt_c_h_main_ss = tail_mean(filter_C_H_main_series, n_ss)
+filt_c_n_main_ss = tail_mean(filter_C_N_main_series, n_ss)
+filt_c_w_main_ss = tail_mean(filter_C_W_main_series, n_ss)
+filt_c_a_main_ss = tail_mean(filter_C_A_main_series, n_ss)
+filt_s_main_ss = tail_mean(filter_S_main_series, n_ss)
+filt_aa_main_ss = tail_mean(filter_AA_main_series, n_ss)
 
-# Filter outlet (waste stream, steady state)
-filt_c_h_waste_ss = np.mean(filter_C_H_waste_series[-n_ss:])
-filt_c_n_waste_ss = np.mean(filter_C_N_waste_series[-n_ss:])
-filt_c_w_waste_ss = np.mean(filter_C_W_waste_series[-n_ss:])
-filt_c_a_waste_ss = np.mean(filter_C_A_waste_series[-n_ss:])
+# Filter waste outlet (steady state)
+filt_c_h_waste_ss = tail_mean(filter_C_H_waste_series, n_ss)
+filt_c_n_waste_ss = tail_mean(filter_C_N_waste_series, n_ss)
+filt_c_w_waste_ss = tail_mean(filter_C_W_waste_series, n_ss)
+filt_c_a_waste_ss = tail_mean(filter_C_A_waste_series, n_ss)
 
 # Build flowsheet table
 flowsheet_data = {
@@ -1184,9 +1202,9 @@ print("Note: CSTR2 uses only its internal lumped reaction r2; reaction 1 (CSTR1)
 # -----------------------------
 # Extended flowsheet including CSTR2 and Surge2
 # -----------------------------
-combined_B_cstr2_ss = np.mean(combined_B_cstr2[-n_ss:])
+combined_B_cstr2_ss = tail_mean(combined_B_cstr2, n_ss)
 combined_B_surge2 = C_B1_surge2 + C_B2_surge2
-combined_B_surge2_ss = np.mean(combined_B_surge2[-n_ss:])
+combined_B_surge2_ss = tail_mean(combined_B_surge2, n_ss)
 
 flowsheet2_data = {
     'Stream / Unit': [
@@ -1194,20 +1212,20 @@ flowsheet2_data = {
         'Surge2 Tank Outlet',
     ],
     'C_A (mol/L)': [
-        f"{np.mean(C_A_cstr2[-n_ss:]):.4f}",
-        f"{np.mean(C_A_surge2[-n_ss:]):.4f}",
+        f"{tail_mean(C_A_cstr2, n_ss):.4f}",
+        f"{tail_mean(C_A_surge2, n_ss):.4f}",
     ],
     'Combined_B (mol/L)': [
         f"{combined_B_cstr2_ss:.4f}",
         f"{combined_B_surge2_ss:.4f}",
     ],
     'Combined_B_conv (rel to A_in)': [
-        f"{np.mean(X_B_combined_cstr2[-n_ss:]):.4f}",
-        f"{np.mean((combined_B_surge2 / np.maximum(params_cstr2.get('C_A_in',1e-12), 1e-12))[-n_ss:]):.4f}",
+        f"{tail_mean(X_B_combined_cstr2, n_ss):.4f}",
+        f"{tail_mean(combined_B_surge2 / np.maximum(params_cstr2.get('C_A_in',1e-12), 1e-12), n_ss):.4f}",
     ],
     'T (K)': [
-        f"{np.mean(T_cstr2[-n_ss:]):.2f}",
-        f"{np.mean(T_surge2[-n_ss:]):.2f}",
+        f"{tail_mean(T_cstr2, n_ss):.2f}",
+        f"{tail_mean(T_surge2, n_ss):.2f}",
     ],
 }
 
