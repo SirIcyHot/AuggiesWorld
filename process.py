@@ -106,6 +106,7 @@ params_filter = {
     "f_N_main_base": 0.02, "f_W_main_base": 0.01, "f_A_main_base": 0.15,
     "alpha_solid": 0.2, "solid_scale": 1.0,
 }
+#old
 params_filter["t_cycle"] = (
     params_filter["t_fill"] + params_filter["t_vacuum"] + params_filter["t_redissolve"]
 )
@@ -146,7 +147,7 @@ def tail_mean(series, n_tail):
     return float(np.mean(series[-n_tail:]))
 
 # =============================================================================
-# CSTR1 model (unchanged)
+# CSTR1 model
 # =============================================================================
 def cstr1_model(t, y, p):
     C_H, C_N, C_W, C_A, T = y
@@ -165,7 +166,7 @@ def cstr1_density(c_h, c_n, c_w, c_a, p):
     return mixture_density_liquid(liquid_composition_from_molar(c_h, c_n, c_w, c_a), p["species_rho"])
 
 # =============================================================================
-# Surge1 model (unchanged)
+# Surge1 model
 # =============================================================================
 def surge1_tank_model(t, y, p, inlet_interp):
     V, C_H, C_N, C_W, C_A, T = y
@@ -223,7 +224,7 @@ def crash_liquid_density(c_h, c_n, c_w, c_a, p):
     return mixture_density_liquid(liquid_composition_from_molar(c_h, c_n, c_w, c_a), p["species_rho"])
 
 # =============================================================================
-# Filter (unchanged)
+# Filter
 # =============================================================================
 def continuous_filter_split(t, p, inlet_interp):
     surge_active = t >= p["t_start"]
@@ -331,7 +332,7 @@ params_cstr2 = {
 
 def cstr2_model(t, y, p, inlet_interp=None, t_feed_start=None):
     """
-    CSTR2 – Method 1 multi-step mechanistic surrogate.
+    CSTR2 – multi-step mechanistic surrogate.
 
     State vector (12 components):
       C_A    – substrate A (mol/L)
