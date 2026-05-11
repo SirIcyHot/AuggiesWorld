@@ -46,11 +46,11 @@ CSTR2 state vector (12 components):
 # TODO: replace the static density values with temperature-dependent density correlations for each unit.
 # TODO: send the waste stream to extractive distillation and convert it to reusable liq N later.
 # TODO: crash tank needs more robust handling of supersaturation and solids inventory management.
+# TODO: dH_crys applies to A only because A is the only species that crystallizes in the crash tank.
+# TODO: include the heat of dissolution of N in CSTR1, the crash tank, and CSTR2 where required.
+# TODO: NA addition to the crash tank should be based on the solubility limit.
 # TODO: temperature-dependent crystallization kinetics should affect solids formation rate (currently ignored).
-# TODO: filter model is very simplified - could be improved with more realistic semi-batch scheduling
-#       or a continuous filtration model with dynamic stream splits based on solids loading and filter capacity.
-# TODO: Stream split fractions in the filter are currently hardcoded -
-#       could be made dynamic based on concentrations, solids loading, or other factors.
+# TODO: continuous filter is a single black-box unit; the current split logic is intentionally simplified.
 # TODO: Unit operations dependent on surge tank active or not, not dependent on previous reactor
 #       residence time and travel time.
 # TODO: Fit reaction orders α1, β1, γ, δ, m, n from isothermal concentration-time experiments.
@@ -69,13 +69,15 @@ import pandas as pd
 # =============================================================================
 params_cstr1 = {
     "F": 1.0, "V": 10.0,
-    "C_Hf": 2.0, "C_Nf": 2.0, "C_Wf": 5.0, "C_Af": 0.0,
-    "Tf": 350.0, "Tc": 300.0,
+    "C_Hf": 2.0, "C_NA_f": 2.0, "C_Wf": 5.0, "C_Af": 0.0,
+    "Tf": 275.15, "Tc": 275.13,
     "rho_ref": 1000.0, "Cp": 4.18,
-    "species_rho": {"H": 1330.0, "N": 1420.0, "W": 1000.0, "A": 754.0, "solid_A": 1500.0},
-    "UA": 5000.0,
-    "k0": 1e6, "Ea": 50000.0, "R": 8.314,
-    "dH": -100000.0,
+    "species_rho": {"H": 1330.0, "NA": 1420.0, "W": 1000.0, "A": 1330.0, "solid_A": 1330.0},
+    "UA": 5000.0, #get from online
+    "k0": 1e6, "Ea": 50000.0, "R": 8.314, #get from sarah
+    "dH": -3000.0,
+    # Heat of dissolution for H (J/mol). Negative = exotherm (approx -1.5 kJ/mol)
+    "dH_diss_H": -1500.0,
 }
 
 params_surge1 = {
@@ -84,36 +86,34 @@ params_surge1 = {
     "t_open": 0.8 * 10.0 / params_cstr1["F"],
     "rho_ref": 995.0, "Cp": params_cstr1["Cp"],
     "species_rho": params_cstr1["species_rho"],
-    "UA": 2000.0, "Tc": 298.15,
+    "UA": 2000.0, "Tc": 275.15,
 }
 
 params_crash = {
     "F_in": params_surge1["F_in"], "F_N": 0.2, "V": 5.0,
-    "Tc": 290.0, "UA": 3000.0, "rho_ref": 1100.0, "Cp": params_cstr1["Cp"],
+    "Tc": 275.15, "UA": 3000.0, "rho_ref": 1100.0, "Cp": params_cstr1["Cp"],
     "species_rho": params_cstr1["species_rho"],
     "k_p": 0.5, "C_A_eq": 0.05,
-    "C_N_ext": 5.0, "T_N": 293.15,
-    "M_A_gmol": 100.0, "T0": 293.15, "dH_precip": -5000.0,
+    "C_NA_ext": 5.0, "T_N": 275.15,
+    "M_A_gmol": 100.0, "T0": 275.15, "dH_crys": -5000.0,
+    "dH_diss_H": -1500.0,  # J/mol heat of dissolution for H (negative = exotherm)
+    # NA solubility limit (mol/L) used to cap incoming NA to the crash tank; set to a large value to disable
+    "C_NA_sol_limit": np.inf,
+    # TODO: include the N dissolution heat and NA solubility-limit feed logic here (excess NA handling).
 }
 
 params_filter = {
-    "n_filters": 3,
     "t_start": params_surge1["t_open"],
-    "t_fill": 1.0, "t_vacuum": 1.0, "t_redissolve": 1.0,
     "V0": 0.8, "V_max": 2.0,
     "F_feed": params_crash["F_in"] + params_crash["F_N"],
     "AA_ratio": 1.25, "trace_A_fraction": 0.05,
-    "f_N_main_base": 0.02, "f_W_main_base": 0.01, "f_A_main_base": 0.15,
+    "f_N_main_base": 0.02, "f_W_main_base": 0.05, "f_A_main_base": 0.15,
     "alpha_solid": 0.2, "solid_scale": 1.0,
 }
-#old
-params_filter["t_cycle"] = (
-    params_filter["t_fill"] + params_filter["t_vacuum"] + params_filter["t_redissolve"]
-)
 
 # Consistent colour scheme
 COLOR_SCHEME = {
-    "C_H": "#1f77b4", "C_N": "#ff7f0e", "C_W": "#2ca02c", "C_A": "#d62728",
+    "C_H": "#1f77b4", "C_NA": "#ff7f0e", "C_W": "#2ca02c", "C_A": "#d62728",
     "C_AAh": "#e377c2", "S": "#9467bd", "T": "#8c564b", "AA": "#17becf",
     "C_I": "#bcbd22",   # yellow-green  – intermediate [I]
     "C_NA": "#ff7f0e",  # orange        – NA (nitric acid product)
@@ -133,11 +133,11 @@ def mixture_density_liquid(composition, species_rho):
         specific_volume += (concentration / total_concentration) / rho_i
     return 1.0 / max(specific_volume, 1e-12)
 
-def liquid_composition_from_molar(c_h, c_n, c_w, c_a):
-    return {"H": c_h, "N": c_n, "W": c_w, "A": c_a}
+def liquid_composition_from_molar(c_h, c_na, c_w, c_a):
+    return {"H": c_h, "NA": c_na, "W": c_w, "A": c_a}
 
-def crash_mixture_density(c_h, c_n, c_w, c_a, solid_moles_a, p, tank_volume_l):
-    liquid_composition = liquid_composition_from_molar(c_h, c_n, c_w, c_a)
+def crash_mixture_density(c_h, c_na, c_w, c_a, solid_moles_a, p, tank_volume_l):
+    liquid_composition = liquid_composition_from_molar(c_h, c_na, c_w, c_a)
     liquid_density = mixture_density_liquid(liquid_composition, p["species_rho"])
     liquid_mass = liquid_density * (tank_volume_l / 1000.0)
     solid_mass = solid_moles_a * (p["M_A_gmol"] / 1000.0)
@@ -150,27 +150,31 @@ def tail_mean(series, n_tail):
 # CSTR1 model
 # =============================================================================
 def cstr1_model(t, y, p):
-    C_H, C_N, C_W, C_A, T = y
+    C_H, C_NA, C_W, C_A, T = y
     F, V = p["F"], p["V"]
     k = p["k0"] * np.exp(-p["Ea"] / (p["R"] * T))
-    r = k * C_H * C_N * C_W
+    r = k * C_H * C_NA * C_W
     dC_H_dt = (F/V)*(p["C_Hf"] - C_H) - r
-    dC_N_dt = (F/V)*(p["C_Nf"] - C_N) - r
+    dC_NA_dt = (F/V)*(p.get("C_NA_f", p.get("C_Nf", 0.0)) - C_NA) - r
     dC_W_dt = (F/V)*(p["C_Wf"] - C_W) - r
     dC_A_dt = (F/V)*(p["C_Af"] - C_A) + r
-    dT_dt = (F/V)*(p["Tf"] - T) - (p["dH"]/(p["rho_ref"]*p["Cp"]))*r \
-            - (p["UA"]/(p["rho_ref"]*p["Cp"]*V))*(T - p["Tc"])
-    return [dC_H_dt, dC_N_dt, dC_W_dt, dC_A_dt, dT_dt]
+    # Heat terms: reaction + cooling + dissolution of N (from feed convective term)
+    Q_rxn = -(p["dH"]/(p["rho_ref"]*p["Cp"]))*r
+    Q_cool = -(p["UA"]/(p["rho_ref"]*p["Cp"]*V))*(T - p["Tc"])
+    # Dissolution heat from H associated with convective feed change (mol/L/s * J/mol -> K/s)
+    Q_diss_H = -(p.get("dH_diss_H", 0.0) * (F/V) * (p.get("C_Hf", 0.0) - C_H)) / (p["rho_ref"] * p["Cp"])
+    dT_dt = (F/V)*(p["Tf"] - T) + Q_rxn + Q_cool + Q_diss_H
+    return [dC_H_dt, dC_NA_dt, dC_W_dt, dC_A_dt, dT_dt]
 
-def cstr1_density(c_h, c_n, c_w, c_a, p):
-    return mixture_density_liquid(liquid_composition_from_molar(c_h, c_n, c_w, c_a), p["species_rho"])
+def cstr1_density(c_h, c_na, c_w, c_a, p):
+    return mixture_density_liquid(liquid_composition_from_molar(c_h, c_na, c_w, c_a), p["species_rho"])
 
 # =============================================================================
 # Surge1 model
 # =============================================================================
 def surge1_tank_model(t, y, p, inlet_interp):
-    V, C_H, C_N, C_W, C_A, T = y
-    C_H_in = inlet_interp["C_H"](t); C_N_in = inlet_interp["C_N"](t)
+    V, C_H, C_NA, C_W, C_A, T = y
+    C_H_in = inlet_interp["C_H"](t); C_NA_in = inlet_interp["C_NA"](t)
     C_W_in = inlet_interp["C_W"](t); C_A_in = inlet_interp["C_A"](t)
     T_in = inlet_interp["T"](t)
     F_in = p["F_in"]
@@ -179,49 +183,56 @@ def surge1_tank_model(t, y, p, inlet_interp):
     if V <= 1e-9:
         return [dV_dt, 0.0, 0.0, 0.0, 0.0, 0.0]
     dC_H_dt = (F_in/V)*(C_H_in - C_H)
-    dC_N_dt = (F_in/V)*(C_N_in - C_N)
+    dC_NA_dt = (F_in/V)*(C_NA_in - C_NA)
     dC_W_dt = (F_in/V)*(C_W_in - C_W)
     dC_A_dt = (F_in/V)*(C_A_in - C_A)
     dT_dt = (F_in/V)*(T_in - T) - (p["UA"]/(p["rho_ref"]*p["Cp"]*V))*(T - p["Tc"])
-    return [dV_dt, dC_H_dt, dC_N_dt, dC_W_dt, dC_A_dt, dT_dt]
+    return [dV_dt, dC_H_dt, dC_NA_dt, dC_W_dt, dC_A_dt, dT_dt]
 
-def surge1_density(c_h, c_n, c_w, c_a, p):
-    return mixture_density_liquid(liquid_composition_from_molar(c_h, c_n, c_w, c_a), p["species_rho"])
+def surge1_density(c_h, c_na, c_w, c_a, p):
+    return mixture_density_liquid(liquid_composition_from_molar(c_h, c_na, c_w, c_a), p["species_rho"])
 
 # =============================================================================
-# Crash tank model (unchanged)
+# Crash tank model
 # =============================================================================
 def crash_tank_model(t, y, p, inlet_interp, t_open):
-    C_H, C_N, C_W, C_A, T, S = y
+    C_H, C_NA, C_W, C_A, T, S = y
     surge_active = t >= t_open
     if not surge_active:
         r_p = p["k_p"] * max(C_A - p["C_A_eq"], 0.0)
         return [0.0, 0.0, 0.0, -r_p, 0.0, 0.0]
     F_in = p["F_in"]; F_N = p["F_N"]
     F_tot = F_in + F_N
-    C_H_in = inlet_interp["C_H"](t); C_N_in = inlet_interp["C_N"](t)
+    C_H_in = inlet_interp["C_H"](t); C_NA_in = inlet_interp["C_NA"](t)
     C_W_in = inlet_interp["C_W"](t); C_A_in = inlet_interp["C_A"](t)
     T_in = inlet_interp["T"](t)
     C_Hf = (F_in*C_H_in) / F_tot
-    C_Nf = (F_in*C_N_in + F_N*p["C_N_ext"]) / F_tot
+    # Raw NA inlet concentration before applying solubility cap
+    C_Nf_raw = (F_in*C_NA_in + F_N*p["C_NA_ext"]) / F_tot
+    # Cap NA by solubility limit (mol/L). Excess NA handling is TODO (precipitate or separate stream).
+    C_Nf = min(C_Nf_raw, p.get("C_NA_sol_limit", np.inf))
     C_Wf = (F_in*C_W_in) / F_tot
     C_Af = (F_in*C_A_in) / F_tot
     Tf   = (F_in*T_in + F_N*p["T_N"]) / F_tot
     r_p = p["k_p"] * max(C_A - p["C_A_eq"], 0.0)
     dC_H_dt = (F_tot/p["V"])*(C_Hf - C_H)
-    dC_N_dt = (F_tot/p["V"])*(C_Nf - C_N)
+    dC_NA_dt = (F_tot/p["V"])*(C_Nf - C_NA)
     dC_W_dt = (F_tot/p["V"])*(C_Wf - C_W)
     dC_A_dt = (F_tot/p["V"])*(C_Af - C_A) - r_p
     solid_out = (F_tot * max(S, 0.0) / max(p["V"], 1e-12)) if surge_active else 0.0
     dS_dt = r_p*p["V"] - solid_out
-    rho_mix = crash_mixture_density(C_H, C_N, C_W, C_A, S, p, p["V"])
-    dT_dt = (F_tot/p["V"])*(Tf - T) \
-            - (p["UA"]/(rho_mix*p["Cp"]*p["V"]))*(T - p["Tc"]) \
-            - (p.get("dH_precip", 0.0)*r_p)/(rho_mix*p["Cp"])
-    return [dC_H_dt, dC_N_dt, dC_W_dt, dC_A_dt, dT_dt, dS_dt]
+    rho_mix = crash_mixture_density(C_H, C_NA, C_W, C_A, S, p, p["V"])
+    # Crystallization heat (A only) as before
+    Q_crys = -(p.get("dH_crys", 0.0) * r_p) / (rho_mix * p["Cp"]) if r_p is not None else 0.0
+    # Dissolution/mixing heat from H inlet (approximate convective contribution)
+    Q_diss_H = -(p.get("dH_diss_H", 0.0) * (F_tot / p["V"]) * (C_Hf - C_H)) / (rho_mix * p["Cp"])
+    dT_dt = (F_tot/p["V"])*(Tf - T) + Q_crys + Q_diss_H \
+            - (p["UA"]/(rho_mix*p["Cp"]*p["V"]))*(T - p["Tc"])
+    # TODO: add refined N dissolution heat once solubility-limited feed model is implemented.
+    return [dC_H_dt, dC_NA_dt, dC_W_dt, dC_A_dt, dT_dt, dS_dt]
 
-def crash_liquid_density(c_h, c_n, c_w, c_a, p):
-    return mixture_density_liquid(liquid_composition_from_molar(c_h, c_n, c_w, c_a), p["species_rho"])
+def crash_liquid_density(c_h, c_na, c_w, c_a, p):
+    return mixture_density_liquid(liquid_composition_from_molar(c_h, c_na, c_w, c_a), p["species_rho"])
 
 # =============================================================================
 # Filter
@@ -230,28 +241,28 @@ def continuous_filter_split(t, p, inlet_interp):
     surge_active = t >= p["t_start"]
     if not surge_active:
         return {k: 0.0 for k in [
-            "S_out_to_main","C_H_main","C_N_main","C_W_main","C_A_main",
-            "C_H_waste","C_N_waste","C_W_waste","C_A_waste","AA_main","total_A_main"
+            "S_out_to_main","C_H_main","C_NA_main","C_W_main","C_A_main",
+            "C_H_waste","C_NA_waste","C_W_waste","C_A_waste","AA_main","total_A_main"
         ]} | {"phase": "inactive"}
-    C_H_in = float(inlet_interp["C_H"](t)); C_N_in = float(inlet_interp["C_N"](t))
+    C_H_in = float(inlet_interp["C_H"](t)); C_NA_in = float(inlet_interp["C_NA"](t))
     C_W_in = float(inlet_interp["C_W"](t)); C_A_in = float(inlet_interp["C_A"](t))
     S_in   = float(inlet_interp["S"](t))
     solid_A_main = max(S_in, 0.0)
     s_frac = S_in / (S_in + p.get("solid_scale", 1.0)) if S_in >= 0.0 else 0.0
     f_N_main = float(np.clip(p.get("f_N_main_base",0.02) + p.get("alpha_solid",0.1)*s_frac, 0.0, 0.9))
-    f_W_main = float(np.clip(p.get("f_W_main_base",0.01) + 0.5*p.get("alpha_solid",0.1)*s_frac, 0.0, 0.9))
+    f_W_main = float(np.clip(p.get("f_W_main_base",0.05), 0.0, 0.9))
     f_A_main = float(np.clip(p.get("f_A_main_base",0.15)*(1.0 - 0.5*s_frac), 0.0, 1.0))
     C_H_main = 0.0
-    C_N_main = f_N_main*C_N_in; C_W_main = f_W_main*C_W_in; C_A_main = f_A_main*C_A_in
+    C_NA_main = f_N_main*C_NA_in; C_W_main = f_W_main*C_W_in; C_A_main = f_A_main*C_A_in
     C_H_waste = C_H_in
-    C_N_waste = max(0.0, 1.0-f_N_main)*C_N_in
+    C_NA_waste = max(0.0, 1.0-f_N_main)*C_NA_in
     C_W_waste = max(0.0, 1.0-f_W_main)*C_W_in
     C_A_waste = max(0.0, 1.0-f_A_main)*C_A_in
     AA_main = p["AA_ratio"]*solid_A_main
     return {
         "phase": "continuous", "S_out_to_main": solid_A_main,
-        "C_H_main": C_H_main, "C_N_main": C_N_main, "C_W_main": C_W_main, "C_A_main": C_A_main,
-        "C_H_waste": C_H_waste, "C_N_waste": C_N_waste, "C_W_waste": C_W_waste, "C_A_waste": C_A_waste,
+        "C_H_main": C_H_main, "C_NA_main": C_NA_main, "C_W_main": C_W_main, "C_A_main": C_A_main,
+        "C_H_waste": C_H_waste, "C_NA_waste": C_NA_waste, "C_W_waste": C_W_waste, "C_A_waste": C_A_waste,
         "AA_main": AA_main, "total_A_main": solid_A_main + C_A_main,
     }
 
@@ -288,8 +299,8 @@ params_cstr2 = {
     "C_AAh_in":   0.50,   # acid form (protonated)
     "C_AA_in":    0.20,   # anhydrous / co-solvent form
     "C_NA_in":    0.00,   # nitric acid (product) – zero in fresh feed
-    "Tf":         298.15, # feed temperature (K)
-    "Tc":         295.0,  # jacket temperature (K)
+    "Tf":         275.15, # feed temperature (K)
+    "Tc":         275.15,  # jacket temperature (K)
 
     # ------- Physical properties -------
     "rho_ref": 1050.0,    # kg/m³ (approximate)
@@ -310,7 +321,7 @@ params_cstr2 = {
     "delta":   1.0,   # order in AAh
     "k0_2":    5e3,   # pre-exponential
     "Ea2":     25000.0,  # J/mol  (lower barrier than step 1 → step 2 fast once I forms)
-    "dH2":    -66000.0,  # J/mol  (strongly exothermic product formation)
+    "dH2":    -60000.0,  # J/mol  (adjusted so dH1+dH2 ≈ -100000 J/mol overall)
 
     # ------- Impurity kinetics: A + AA → Imp (lumped) -------
     "m_imp":   1.0,   # order in A
@@ -318,6 +329,9 @@ params_cstr2 = {
     "k0_imp":  5e1,   # pre-exponential (much smaller than main path)
     "Ea_imp":  55000.0,  # J/mol  (higher Ea → worsens at high T, sets T operating window)
     "dH_imp": -15000.0,  # J/mol
+
+    # Heat of dissolution placeholder for H in CSTR2 (CSTR2 does not track H by default)
+    "dH_diss_H": -1500.0,
 
     # ------- Product split fractions for Step 2 -------
     # Liquid products (mol product per mol [I] reacted)
@@ -429,28 +443,28 @@ sol_cstr1 = solve_ivp(
     lambda t, y: cstr1_model(t, y, params_cstr1),
     t_span, y0_cstr1, t_eval=t_eval, method="RK45"
 )
-C_H_cstr1, C_N_cstr1, C_W_cstr1, C_A_cstr1, T_cstr1 = sol_cstr1.y
+C_H_cstr1, C_NA_cstr1, C_W_cstr1, C_A_cstr1, T_cstr1 = sol_cstr1.y
 t = sol_cstr1.t
 X_A_cstr1 = C_A_cstr1 / params_cstr1["C_Hf"]
-rho_cstr1 = np.array([cstr1_density(ch, cn, cw, ca, params_cstr1)
-                      for ch, cn, cw, ca in zip(C_H_cstr1, C_N_cstr1, C_W_cstr1, C_A_cstr1)])
+rho_cstr1 = np.array([cstr1_density(ch, cna, cw, ca, params_cstr1)
+                      for ch, cna, cw, ca in zip(C_H_cstr1, C_NA_cstr1, C_W_cstr1, C_A_cstr1)])
 print(f"Surge1 tank outlet opens at t = {params_surge1['t_open']:.2f} s")
 
 interp_cstr1 = {k: interp1d(t, v, kind="cubic", bounds_error=False, fill_value="extrapolate")
-                for k, v in zip(["C_H","C_N","C_W","C_A","T"],
-                                [C_H_cstr1, C_N_cstr1, C_W_cstr1, C_A_cstr1, T_cstr1])}
+                for k, v in zip(["C_H","C_NA","C_W","C_A","T"],
+                                [C_H_cstr1, C_NA_cstr1, C_W_cstr1, C_A_cstr1, T_cstr1])}
 
 # Surge1
-y0_surge1 = [params_surge1["V0"], C_H_cstr1[0], C_N_cstr1[0], C_W_cstr1[0], C_A_cstr1[0], T_cstr1[0]]
+y0_surge1 = [params_surge1["V0"], C_H_cstr1[0], C_NA_cstr1[0], C_W_cstr1[0], C_A_cstr1[0], T_cstr1[0]]
 sol_surge1 = solve_ivp(
     lambda tt, yy: surge1_tank_model(tt, yy, params_surge1, interp_cstr1),
     t_span, y0_surge1, t_eval=t_eval, method="RK45"
 )
-V_surge1, C_H_surge1, C_N_surge1, C_W_surge1, C_A_surge1, T_surge1 = sol_surge1.y
+V_surge1, C_H_surge1, C_NA_surge1, C_W_surge1, C_A_surge1, T_surge1 = sol_surge1.y
 
 interp_surge1 = {k: interp1d(sol_surge1.t, v, kind="cubic", bounds_error=False, fill_value="extrapolate")
-                 for k, v in zip(["C_H","C_N","C_W","C_A","T"],
-                                 [C_H_surge1, C_N_surge1, C_W_surge1, C_A_surge1, T_surge1])}
+                 for k, v in zip(["C_H","C_NA","C_W","C_A","T"],
+                                 [C_H_surge1, C_NA_surge1, C_W_surge1, C_A_surge1, T_surge1])}
 
 # Crash tank
 y0_crash = [0.0, 0.0, 0.0, 0.0, params_crash.get("T0", 293.15), 0.0]
@@ -458,13 +472,13 @@ sol_crash = solve_ivp(
     lambda tt, yy: crash_tank_model(tt, yy, params_crash, interp_surge1, params_surge1["t_open"]),
     t_span, y0_crash, t_eval=t_eval, method="RK45"
 )
-C_H_crash, C_N_crash, C_W_crash, C_A_crash, T_crash, S_crash = sol_crash.y
+C_H_crash, C_NA_crash, C_W_crash, C_A_crash, T_crash, S_crash = sol_crash.y
 Tc_crash = np.full_like(sol_crash.t, params_crash["Tc"])
 
 V_m3 = params_crash["V"] / 1000.0
 M_A_kg = params_crash["M_A_gmol"] / 1000.0
-rho_crash_liquid = np.array([crash_liquid_density(ch, cn, cw, ca, params_crash)
-                              for ch, cn, cw, ca in zip(C_H_crash, C_N_crash, C_W_crash, C_A_crash)])
+rho_crash_liquid = np.array([crash_liquid_density(ch, cna, cw, ca, params_crash)
+                              for ch, cna, cw, ca in zip(C_H_crash, C_NA_crash, C_W_crash, C_A_crash)])
 mass_liquid_kg  = rho_crash_liquid * V_m3
 mass_solid_kg   = S_crash * M_A_kg
 solid_content_pct = 100.0 * mass_solid_kg / (mass_solid_kg + mass_liquid_kg + 1e-12)
@@ -475,13 +489,13 @@ crash_solid_out_rate = np.where(
 )
 
 interp_crash = {k: interp1d(sol_crash.t, v, kind="cubic", bounds_error=False, fill_value="extrapolate")
-                for k, v in zip(["C_H","C_N","C_W","C_A","S"],
-                                [C_H_crash, C_N_crash, C_W_crash, C_A_crash, S_crash])}
+                for k, v in zip(["C_H","C_NA","C_W","C_A","S"],
+                                [C_H_crash, C_NA_crash, C_W_crash, C_A_crash, S_crash])}
 
 # Filter
 filter_results = {k: [] for k in [
-    "S_out_to_main","C_H_main","C_N_main","C_W_main","C_A_main",
-    "C_H_waste","C_N_waste","C_W_waste","C_A_waste","AA_main","total_A_main"
+    "S_out_to_main","C_H_main","C_NA_main","C_W_main","C_A_main",
+    "C_H_waste","C_NA_waste","C_W_waste","C_A_waste","AA_main","total_A_main"
 ]}
 for tt in sol_crash.t:
     fs = continuous_filter_split(tt, params_filter, interp_crash)
@@ -492,20 +506,20 @@ for k in filter_results:
 
 filter_S_main_series       = filter_results["S_out_to_main"]
 filter_C_A_main_series     = filter_results["C_A_main"]
-filter_C_N_main_series     = filter_results["C_N_main"]
+filter_C_NA_main_series     = filter_results["C_NA_main"]
 filter_C_W_main_series     = filter_results["C_W_main"]
 filter_C_H_main_series     = filter_results["C_H_main"]
 filter_AA_main_series      = filter_results["AA_main"]
 filter_total_A_main_series = filter_results["total_A_main"]
 filter_C_H_waste_series    = filter_results["C_H_waste"]
-filter_C_N_waste_series    = filter_results["C_N_waste"]
+filter_C_NA_waste_series    = filter_results["C_NA_waste"]
 filter_C_W_waste_series    = filter_results["C_W_waste"]
 filter_C_A_waste_series    = filter_results["C_A_waste"]
 
 interp_filter_main = {
     "C_A":  interp1d(sol_crash.t, filter_C_A_main_series, kind="cubic", bounds_error=False, fill_value="extrapolate"),
     "AA":   interp1d(sol_crash.t, filter_AA_main_series,  kind="cubic", bounds_error=False, fill_value="extrapolate"),
-    "C_N":  interp1d(sol_crash.t, filter_C_N_main_series, kind="cubic", bounds_error=False, fill_value="extrapolate"),
+    "C_NA":  interp1d(sol_crash.t, filter_C_NA_main_series, kind="cubic", bounds_error=False, fill_value="extrapolate"),
     "S_A":  interp1d(sol_crash.t, filter_S_main_series,   kind="cubic", bounds_error=False, fill_value="extrapolate"),
     # FWNA and AAh come from fresh feed defined in params_cstr2 (no upstream source)
 }
@@ -528,9 +542,9 @@ y0_cstr2 = [
     0.0,   # S_B2
 ]
 
-# Calculate filter residence time: τ = (n_filters * V_avg) / F_feed
+# Calculate filter residence time for the single continuous filter: τ = V_avg / F_feed
 V_avg_filter = (params_filter["V0"] + params_filter["V_max"]) / 2.0
-tau_filter = (params_filter["n_filters"] * V_avg_filter) / params_filter["F_feed"]
+tau_filter = V_avg_filter / params_filter["F_feed"]
 t_feed_cstr2_start = params_filter["t_start"] + tau_filter
 
 sol_cstr2 = solve_ivp(
@@ -645,7 +659,7 @@ ax1[0].plot(t, np.full_like(t, params_cstr1["Tc"]), "--", color="gray", lw=1, la
 ax1[0].set_ylabel("Temperature (K)"); ax1[0].set_title("CSTR1: Temperature vs Time")
 ax1[0].grid(True, alpha=0.3); ax1[0].legend()
 ax1[1].plot(t, C_H_cstr1, label="C_H", color=COLOR_SCHEME["C_H"])
-ax1[1].plot(t, C_N_cstr1, label="C_N", color=COLOR_SCHEME["C_N"])
+ax1[1].plot(t, C_NA_cstr1, label="C_NA", color=COLOR_SCHEME["C_NA"])
 ax1[1].plot(t, C_W_cstr1, label="C_W", color=COLOR_SCHEME["C_W"])
 ax1[1].plot(t, C_A_cstr1, label="C_A", color=COLOR_SCHEME["C_A"])
 ax1[1].set_ylabel("Concentration (mol/L)"); ax1[1].set_title("CSTR1: Concentrations vs Time")
@@ -664,7 +678,7 @@ ax2[0].set_ylabel("Volume (L)"); ax2[0].set_title("Surge1 Tank: Volume vs Time")
 ax2[0].grid(True, alpha=0.3); ax2[0].legend()
 ax2[1].plot(sol_surge1.t, C_A_surge1, label="C_A", color=COLOR_SCHEME["C_A"])
 ax2[1].plot(sol_surge1.t, C_H_surge1, label="C_H", color=COLOR_SCHEME["C_H"])
-ax2[1].plot(sol_surge1.t, C_N_surge1, label="C_N", color=COLOR_SCHEME["C_N"], linestyle=":")
+ax2[1].plot(sol_surge1.t, C_NA_surge1, label="C_NA", color=COLOR_SCHEME["C_NA"], linestyle=":")
 ax2[1].plot(sol_surge1.t, C_W_surge1, label="C_W", color=COLOR_SCHEME["C_W"])
 ax2[1].set_ylabel("Concentration (mol/L)"); ax2[1].set_title("Surge1 Tank: Concentrations vs Time")
 ax2[1].grid(True, alpha=0.3); ax2[1].legend()
@@ -683,7 +697,7 @@ ax3_0b = ax3[0].twinx()
 ax3_0b.plot(sol_crash.t, crash_solid_out_rate, color="black", ls="--", label="Solids out to filter")
 ax3_0b.set_ylabel("Solids out rate (mol/s)"); ax3_0b.legend(loc="upper right")
 ax3[1].plot(sol_crash.t, C_A_crash, label="C_A", lw=2, color=COLOR_SCHEME["C_A"])
-ax3[1].plot(sol_crash.t, C_N_crash, label="C_N", lw=2, color=COLOR_SCHEME["C_N"])
+ax3[1].plot(sol_crash.t, C_NA_crash, label="C_NA", lw=2, color=COLOR_SCHEME["C_NA"])
 ax3[1].plot(sol_crash.t, C_H_crash, label="C_H", alpha=0.7, color=COLOR_SCHEME["C_H"])
 ax3[1].plot(sol_crash.t, C_W_crash, label="C_W", alpha=0.7, color=COLOR_SCHEME["C_W"])
 ax3[1].set_ylabel("Concentration (mol/L)"); ax3[1].set_title("Crash Tank: Concentrations vs Time")
@@ -700,13 +714,13 @@ ax4[0].plot(sol_crash.t, filter_AA_main_series,      label="AA recovered (main)"
 ax4[0].plot(sol_crash.t, filter_S_main_series,       label="Solid A to main (mol)",    lw=2, color="red")
 ax4[0].plot(sol_crash.t, filter_total_A_main_series, label="Total A in main", lw=1, ls="--", color="darkred")
 ax4[0].set_ylabel("Amount (mol or mol/L)"); ax4[0].set_title("Filter: Main Stream"); ax4[0].grid(True, alpha=0.3); ax4[0].legend()
-ax4[1].plot(sol_crash.t, filter_C_N_main_series, label="C_N (main)", color=COLOR_SCHEME["C_N"])
+ax4[1].plot(sol_crash.t, filter_C_NA_main_series, label="C_NA (main)", color=COLOR_SCHEME["C_NA"])
 ax4[1].plot(sol_crash.t, filter_C_W_main_series, label="C_W (main)", color=COLOR_SCHEME["C_W"])
 ax4[1].plot(sol_crash.t, filter_C_A_main_series, label="C_A (main)", color=COLOR_SCHEME["C_A"])
 ax4[1].set_ylabel("Concentration (mol/L)"); ax4[1].set_title("Filter: Main Stream Trace Concentrations")
 ax4[1].grid(True, alpha=0.3); ax4[1].legend()
 ax4[2].plot(sol_crash.t, filter_C_H_waste_series, label="C_H (waste)", color=COLOR_SCHEME["C_H"])
-ax4[2].plot(sol_crash.t, filter_C_N_waste_series, label="C_N (waste)", color=COLOR_SCHEME["C_N"])
+ax4[2].plot(sol_crash.t, filter_C_NA_waste_series, label="C_NA (waste)", color=COLOR_SCHEME["C_NA"])
 ax4[2].plot(sol_crash.t, filter_C_W_waste_series, label="C_W (waste)", color=COLOR_SCHEME["C_W"])
 ax4[2].plot(sol_crash.t, filter_C_A_waste_series, label="C_A (waste)", color=COLOR_SCHEME["C_A"])
 ax4[2].set_xlabel("Time (s)"); ax4[2].set_ylabel("Concentration (mol/L)")
@@ -790,7 +804,7 @@ def ss(arr): return tail_mean(arr, n_ss)
 flowsheet_data = {
     "Stream / Unit":   ["CSTR1 Outlet","Surge1 Outlet","Crash Outlet","Filter Main","Filter Waste"],
     "C_H (mol/L)":     [f"{ss(C_H_cstr1):.4f}", f"{ss(C_H_surge1):.4f}", f"{ss(C_H_crash):.4f}", f"{ss(filter_C_H_main_series):.4f}", f"{ss(filter_C_H_waste_series):.4f}"],
-    "C_N (mol/L)":     [f"{ss(C_N_cstr1):.4f}", f"{ss(C_N_surge1):.4f}", f"{ss(C_N_crash):.4f}", f"{ss(filter_C_N_main_series):.4f}", f"{ss(filter_C_N_waste_series):.4f}"],
+    "C_NA (mol/L)":     [f"{ss(C_NA_cstr1):.4f}", f"{ss(C_NA_surge1):.4f}", f"{ss(C_NA_crash):.4f}", f"{ss(filter_C_NA_main_series):.4f}", f"{ss(filter_C_NA_waste_series):.4f}"],
     "C_W (mol/L)":     [f"{ss(C_W_cstr1):.4f}", f"{ss(C_W_surge1):.4f}", f"{ss(C_W_crash):.4f}", f"{ss(filter_C_W_main_series):.4f}", f"{ss(filter_C_W_waste_series):.4f}"],
     "C_A (mol/L)":     [f"{ss(C_A_cstr1):.4f}", f"{ss(C_A_surge1):.4f}", f"{ss(C_A_crash):.4f}", f"{ss(filter_C_A_main_series):.4f}", f"{ss(filter_C_A_waste_series):.4f}"],
     "S_A (mol solid)": ["—","—", f"{ss(S_crash):.4f}", f"{ss(filter_S_main_series):.4f}","—"],
