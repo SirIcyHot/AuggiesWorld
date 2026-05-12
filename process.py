@@ -74,7 +74,7 @@ params_cstr1 = {
     "rho_ref": 1000.0, "Cp": 4.18,
     "species_rho": {"H": 1330.0, "NA": 1420.0, "W": 1000.0, "A": 1330.0, "solid_A": 1330.0},
     "UA": 5000.0, #get from online
-    "k0": 1e6, "Ea": 50000.0, "R": 8.314, #get from sarah
+    "k0": 1e6, "Ea": 30000.0, "R": 8.314, #get from sarah
     "dH": -3000.0,
     # Heat of dissolution for H (J/mol). Negative = exotherm (approx -1.5 kJ/mol)
     "dH_diss_H": -1500.0,
@@ -313,21 +313,21 @@ params_cstr2 = {
     "alpha1":  1.0,   # order in A
     "beta1":   1.0,   # order in FWNA
     "k0_1":    1e4,   # pre-exponential (L^(α1+β1-1) mol^(1-α1-β1) s⁻¹)
-    "Ea1":     30000.0,  # J/mol  (moderate barrier – fast initiation)
+    "Ea1":     25000.0,  # J/mol  (moderate barrier – fast initiation)
     "dH1":    -40000.0,  # J/mol  (exothermic activation)
 
     # ------- Step 2 kinetics: [I] + AAh → B products -------
     "gamma":   1.0,   # order in [I]
     "delta":   1.0,   # order in AAh
     "k0_2":    5e3,   # pre-exponential
-    "Ea2":     25000.0,  # J/mol  (lower barrier than step 1 → step 2 fast once I forms)
+    "Ea2":     20000.0,  # J/mol  (lower barrier than step 1 → step 2 fast once I forms)
     "dH2":    -60000.0,  # J/mol  (adjusted so dH1+dH2 ≈ -100000 J/mol overall)
 
     # ------- Impurity kinetics: A + AA → Imp (lumped) -------
     "m_imp":   1.0,   # order in A
     "n_imp":   1.0,   # order in AA
     "k0_imp":  5e1,   # pre-exponential (much smaller than main path)
-    "Ea_imp":  55000.0,  # J/mol  (higher Ea → worsens at high T, sets T operating window)
+    "Ea_imp":  50000.0,  # J/mol  (higher Ea → worsens at high T, sets T operating window)
     "dH_imp": -15000.0,  # J/mol
 
     # Heat of dissolution placeholder for H in CSTR2 (CSTR2 does not track H by default)
@@ -438,7 +438,7 @@ t_span = (0, 120)
 t_eval = np.linspace(*t_span, 500)
 
 # CSTR1
-y0_cstr1 = [0.0, 0.0, 0.0, 0.0, 350.0]
+y0_cstr1 = [0.0, 0.0, 0.0, 0.0, 275.15]
 sol_cstr1 = solve_ivp(
     lambda t, y: cstr1_model(t, y, params_cstr1),
     t_span, y0_cstr1, t_eval=t_eval, method="RK45"
@@ -467,7 +467,7 @@ interp_surge1 = {k: interp1d(sol_surge1.t, v, kind="cubic", bounds_error=False, 
                                  [C_H_surge1, C_NA_surge1, C_W_surge1, C_A_surge1, T_surge1])}
 
 # Crash tank
-y0_crash = [0.0, 0.0, 0.0, 0.0, params_crash.get("T0", 293.15), 0.0]
+y0_crash = [0.0, 0.0, 0.0, 0.0, params_crash.get("T0", 275.15), 0.0]
 sol_crash = solve_ivp(
     lambda tt, yy: crash_tank_model(tt, yy, params_crash, interp_surge1, params_surge1["t_open"]),
     t_span, y0_crash, t_eval=t_eval, method="RK45"
@@ -584,7 +584,7 @@ params_surge2 = {
     "rho_ref": params_cstr2["rho_ref"],
     "Cp":      params_cstr2["Cp"],
     "UA":      1000.0,
-    "Tc":      295.0,
+    "Tc":      275.15,
 }
 
 
@@ -864,5 +864,101 @@ CSTR2 KINETIC MODEL SUMMARY (Method 1 – Multi-Step Mechanistic Surrogate)
   → Impurity selectivity worsens faster than main reaction with rising T.
   → Optimal T operating window: maximize r2 / r_imp ratio.
 """)
+
+# =============================================================================
+# Export to Excel with embedded plots
+# =============================================================================
+import os
+from datetime import datetime
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils.dataframe import dataframe_to_rows
+
+# Create output directory (Downloads folder)
+output_dir = os.path.expanduser("~/Downloads/simulation_results")
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+# Timestamp for filename
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+excel_filename = os.path.join(output_dir, f"process_simulation_{timestamp}.xlsx")
+
+# Save all figures to temporary PNG files
+fig_list = [
+    (fig1, "CSTR1"),
+    (fig2, "Surge1"),
+    (fig3, "Crash_Tank"),
+    (fig4, "Filter"),
+    (fig5, "CSTR2"),
+    (fig6, "Surge2"),
+]
+
+png_files = {}
+for fig, name in fig_list:
+    png_path = os.path.join(output_dir, f"{name}_plot.png")
+    fig.savefig(png_path, dpi=100, bbox_inches='tight')
+    png_files[name] = png_path
+
+# Create Excel workbook
+wb = Workbook()
+wb.remove(wb.active)  # Remove default sheet
+
+# ---- Sheet 1: Upstream Flowsheet ----
+ws1 = wb.create_sheet("Upstream Flowsheet", 0)
+for r_idx, row in enumerate(dataframe_to_rows(df1, index=False, header=True), 1):
+    for c_idx, value in enumerate(row, 1):
+        cell = ws1.cell(row=r_idx, column=c_idx, value=value)
+        if r_idx == 1:  # Header row
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+ws1.column_dimensions['A'].width = 20
+for col in ['B', 'C', 'D', 'E', 'F', 'G', 'H']:
+    ws1.column_dimensions[col].width = 15
+
+# ---- Sheet 2: CSTR2/Surge2 Flowsheet ----
+ws2 = wb.create_sheet("CSTR2 Flowsheet", 1)
+for r_idx, row in enumerate(dataframe_to_rows(df2, index=False, header=True), 1):
+    for c_idx, value in enumerate(row, 1):
+        cell = ws2.cell(row=r_idx, column=c_idx, value=value)
+        if r_idx == 1:  # Header row
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+ws2.column_dimensions['A'].width = 20
+for col in ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']:
+    ws2.column_dimensions[col].width = 15
+
+# ---- Sheets 3-8: Plots ----
+plot_sheet_names = ["CSTR1 Plot", "Surge1 Plot", "Crash Tank Plot", "Filter Plot", "CSTR2 Plot", "Surge2 Plot"]
+for idx, (fig, name) in enumerate(fig_list):
+    ws_plot = wb.create_sheet(plot_sheet_names[idx], idx + 2)
+    png_path = png_files[name]
+    from openpyxl.drawing.image import Image as XLImage
+    img = XLImage(png_path)
+    img.width = 800
+    img.height = 600
+    ws_plot.add_image(img, "A1")
+    ws_plot.sheet_properties.pageSetUpPr.fitToPage = True
+    ws_plot.page_setup.paperSize = ws_plot.PAPERSIZE_LETTER
+    ws_plot.page_margins.left = 0.5
+    ws_plot.page_margins.right = 0.5
+
+# Save workbook
+wb.save(excel_filename)
+
+print(f"\n{'='*80}")
+print(f"✓ Excel file created successfully: {excel_filename}")
+print(f"  - Sheet 1: Upstream flowsheet data (df1)")
+print(f"  - Sheet 2: CSTR2/Surge2 flowsheet data (df2)")
+print(f"  - Sheets 3-8: Embedded plots for all unit operations")
+print(f"{'='*80}\n")
+
+# Clean up temporary PNG files (optional - comment out to keep them)
+for png_path in png_files.values():
+     if os.path.exists(png_path):
+         os.remove(png_path)
 
 plt.show()
