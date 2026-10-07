@@ -1,13 +1,4 @@
-"""Two-feed PharmaPy CSTR flowsheet.
-
-The flowsheet is::
-
-    MIX01 --> R01
-
-``MIX01`` combines two continuous liquid feeds and ``R01`` is PharmaPy's
-continuous stirred-tank reactor. Feed compositions are supplied by compound
-name; the database controls the order required by PharmaPy internally.
-"""
+"""Two-feed CSTR using PharmaPy's refactored unit operations."""
 
 from __future__ import annotations
 
@@ -15,18 +6,27 @@ import os
 import sys
 from pathlib import Path
 from typing import Mapping
-from types import SimpleNamespace
 
 import numpy as np
 
+PHARMAPY_SOURCE_PATH = (
+    Path(Path(__file__).anchor)
+    / "PharmaPy-dev-upd2"
+    / "PharmaPy-dev-upd2"
+)
+if PHARMAPY_SOURCE_PATH.is_dir():
+    sys.path.insert(0, str(PHARMAPY_SOURCE_PATH))
 
-from PharmaPy.Containers import Mixer as PharmaPyMixer
+from PharmaPy.IntegratorBackends import ScipyBackend
 from PharmaPy.Kinetics import RxnKinetics
-from PharmaPy.Phases import LiquidPhase
-from PharmaPy.Reactors import CSTR
+from PharmaPy.MultiPhaseVessel import MultiPhaseVessel
+from PharmaPy.MixedPhases_Refactored import MixedStream
+from PharmaPy.Phases_Refactored import LiquidPhase
+from PharmaPy.Reactors_Refactored import ContinuousReactor
 from PharmaPy.SimExec import SimulationExec
-from PharmaPy.Streams import LiquidStream
+from PharmaPy.Streams_Refactored import LiquidStream
 from PharmaPy.ThermoModule import ParseDatabase
+from PharmaPy.DataClasses import PhaseMapping, PhaseRef, StreamConnection
 
 
 DEFAULT_DATABASE_PATH = Path("Z:/AuggiesWorld/Project work/compound_database.json")
@@ -46,37 +46,41 @@ FEED_B = {"B": 0.33}
 INITIAL_REACTOR = {"A": 0.0, "B": 0.0, "C": 0.0}
 
 
-class Mixer(PharmaPyMixer):
-    """Steady two-feed mixer with vector-shaped connection outputs."""
+class DirectInletContinuousReactor(ContinuousReactor):
+    """Refactored reactor with local outlet and inlet compatibility fixes."""
 
-    def solve_unit(self) -> None:
-        total_flow = sum(feed.mass_flow for feed in self.Inlets)
-        mass_frac = sum(
-            feed.mass_flow * feed.mass_frac for feed in self.Inlets
-        ) / total_flow
-        temperature = sum(
-            feed.mass_flow * feed.temp for feed in self.Inlets
-        ) / total_flow
-        time = np.array([0.0, 1.0])
+    def configure_default_connections(self):
+        """Create the outlet without using the broken phase copy path."""
+        if len(self.outlet_connections) > 0:
+            return
 
-        self.names_states_out = ["temp", "mass_frac", "mass_flow"]
-        self.Outlet = LiquidStream(
-            path_thermo=self.Inlets[0].path_data,
-            temp=temperature,
-            mass_frac=mass_frac,
-            mass_flow=total_flow,
+        phase = self.Phases[0]
+        outlet_phase = LiquidStream(
+            path_thermo=phase.path_data,
+            temp=phase.temp,
+            pres=phase.pres,
+            mole_conc=phase.mole_conc,
+            vol_flow=0.0,
+            name_solv=phase.name_solv,
             verbose=False,
         )
-        self.outputs = {
-            "temp": np.full(time.shape, temperature),
-            "mass_frac": np.vstack((mass_frac, mass_frac)),
-            "mass_flow": np.full(time.shape, total_flow),
-        }
-        self.result = SimpleNamespace(time=time)
-        self.timeProf = time
+        outlet_stream = MixedStream([outlet_phase])
+        phase_ref = PhaseRef("liquid", 0)
+        self.outlet_connections = [
+            StreamConnection(
+                stream=outlet_stream,
+                phase_mappings=[
+                    PhaseMapping(
+                        source_phaseref=phase_ref,
+                        sink_phaseref=phase_ref,
+                    )
+                ],
+            )
+        ]
 
-    def flatten_states(self) -> None:
-        return None
+    @property
+    def Inlet(self):
+        return self.inlet_connections
 
 
 def database_species(database_path: Path) -> tuple[str, ...]:
@@ -109,8 +113,8 @@ def make_feed(
     flow_rate: float,
     species_names: tuple[str, ...],
 ) -> LiquidStream:
-    """Create one named-composition liquid feed."""
-    feed = LiquidStream(
+    """Create one refactored PharmaPy liquid feed."""
+    return LiquidStream(
         path_thermo=str(database_path),
         temp=TEMPERATURE,
         mole_conc=named_mole_concentration(composition, species_names),
@@ -118,38 +122,18 @@ def make_feed(
         name_solv="solvent",
         verbose=False,
     )
-    # Mixer.dynamic_balances expects continuous inlet fields to have a time
-    # axis. Two identical points represent a steady feed without scalar
-    # fields reaching the vectorized balance code.
-    steady_time = np.array([0.0, 1.0])
-    steady_profile = {
-        "mass_flow": np.full(steady_time.shape, feed.mass_flow),
-        "mass_frac": np.vstack((feed.mass_frac, feed.mass_frac)),
-        "temp": np.full(steady_time.shape, feed.temp),
-    }
-    feed.time_upstream = steady_time
-    feed.y_upstream = steady_profile
-    feed.y_inlet = steady_profile
-    return feed
 
 
 def build_flowsheet(database_path: Path | str = DEFAULT_DATABASE_PATH) -> SimulationExec:
-    """Build the two-feed mixer-to-CSTR PharmaPy flowsheet."""
+    """Build a one-unit flowsheet with two direct reactor inlets."""
     database_path = Path(database_path)
     species_names = database_species(database_path)
 
-    flowsheet = SimulationExec(
-        str(database_path),
-        flowsheet="MIX01 --> R01",
+    flowsheet = SimulationExec(str(database_path), flowsheet="R01")
+    flowsheet.R01 = DirectInletContinuousReactor(
+        integrator=ScipyBackend(),
+        isothermal=True,
     )
-
-    flowsheet.MIX01 = Mixer()
-    flowsheet.MIX01.Inlets = [
-        make_feed(database_path, FEED_A, FLOW_A, species_names),
-        make_feed(database_path, FEED_B, FLOW_B, species_names),
-    ]
-
-    flowsheet.R01 = CSTR(isothermal=True)
     flowsheet.R01.Phases = LiquidPhase(
         str(database_path),
         temp=TEMPERATURE,
@@ -157,7 +141,11 @@ def build_flowsheet(database_path: Path | str = DEFAULT_DATABASE_PATH) -> Simula
         vol=REACTOR_VOLUME,
         name_solv="solvent",
     )
-    flowsheet.R01.Kinetics = RxnKinetics(
+    MultiPhaseVessel.Inlet.fset(flowsheet.R01, [
+        make_feed(database_path, FEED_A, FLOW_A, species_names),
+        make_feed(database_path, FEED_B, FLOW_B, species_names),
+    ])
+    flowsheet.R01.RxnKinetics = RxnKinetics(
         path=str(database_path),
         rxn_list=REACTIONS,
         k_params=RATE_CONSTANTS,
@@ -171,10 +159,10 @@ def run_flowsheet(
     database_path: Path | str = DEFAULT_DATABASE_PATH,
     runtime: float = RUNTIME,
 ) -> SimulationExec:
-    """Run the mixer-to-CSTR flowsheet and return its populated executor."""
+    """Run the direct two-inlet refactored CSTR flowsheet."""
     flowsheet = build_flowsheet(database_path)
     flowsheet.SolveFlowsheet(
-        kwargs_run={"MIX01": {}, "R01": {"runtime": runtime}},
+        kwargs_run={"R01": {"runtime": runtime}},
         verbose=False,
     )
     return flowsheet
@@ -186,5 +174,8 @@ if __name__ == "__main__":
     result = simulation.R01.result
 
     print("Final CSTR concentrations (mol/L):")
-    for name, concentration in zip(simulation.R01.name_species, result.mole_conc[-1]):
+    for name, concentration in zip(
+        simulation.R01.Phases.name_species,
+        result.mole_conc_liquid0[-1],
+    ):
         print(f"  {name}: {concentration:.6f}")
