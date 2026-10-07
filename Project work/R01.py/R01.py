@@ -26,6 +26,13 @@ Figures are written to ``results/`` next to this file:
     R01_profiles.png   Ca vs time, T vs time, Ca vs T
     R01_native.png     the same run through PharmaPy.Plotting.plot_function
     R01_settings.png   the settings and initial conditions used for the run
+    R01_mass_balance.png  inlet vs outlet species balance at the final time
+    R01_heat_sources.png  energy-balance terms (heat sources) vs time
+
+Both balance figures read PharmaPy's own balance terms rather than
+re-deriving them: the solved trajectory is replayed through the vessel's
+``material_balances`` and ``energy_balances`` (the same calls the integrator
+makes), and each term is recorded as PharmaPy computed it.
 
 The compound database defaults to ``../compound_database.json``; set
 ``PHARMAPY_DATABASE`` to use another one.
@@ -77,11 +84,34 @@ COOLANT_MASS_FLOW = 0.1  # kg/s
 COOLANT_TEMPERATURE = 313.15  # K
 COOLANT_H_CONV = 1000.0  # W/m**2/K, jacket side
 
-RUNTIME = 1800.0  # s
+# 7.2 residence times: long enough that the end of the run is a steady
+# state (accumulation below STEADY_STATE_TOL of the throughput).
+RUNTIME = 3600.0  # s
+STEADY_STATE_TOL = 1.0e-2  # accumulation / inlet mass flow, per species
 
-# Validated categorical slots 1-3 (blue, orange, aqua).
-SERIES_COLORS = ("#2a78d6", "#eb6834", "#1baf7a")
+# Validated categorical slots 1-4 (blue, orange, aqua, yellow).
+SERIES_COLORS = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100")
+TEXT_PRIMARY = "#0b0b0b"
 TEXT_MUTED = "#52514e"
+
+
+class BalanceRecordingReactor(ContinuousReactor):
+    """ContinuousReactor that keeps the energy-balance terms it computes.
+
+    ``MultiPhaseVessel.energy_balances`` collects every heat term into a
+    local ``contributions`` dict, sums it and returns only dT/dt. The
+    shaft-work hook is the last term it adds before summing, so copying the
+    dict there captures every term exactly as PharmaPy computed it. Nothing
+    about the balance itself changes.
+    """
+
+    def add_shaftwork_energy_terms(self, contributions, time,
+                                   completed_state):
+        super().add_shaftwork_energy_terms(contributions, time,
+                                           completed_state)
+        self.energy_contributions = {
+            name: float(value) for name, value in contributions.items()
+        }
 
 
 # ---------------------------------------------------------------- builders
@@ -127,12 +157,12 @@ def make_feed(
 
 def build_reactor(
     database_path: Path | str = DEFAULT_DATABASE_PATH,
-) -> ContinuousReactor:
+) -> BalanceRecordingReactor:
     """Build R01 with both feeds attached as separate inlets."""
     database_path = Path(database_path)
     species_names = database_species(database_path)
 
-    reactor = ContinuousReactor(
+    reactor = BalanceRecordingReactor(
         integrator=ScipyBackend(),
         h_conv=REACTOR_H_CONV,
         diam=REACTOR_DIAMETER,
@@ -172,6 +202,69 @@ def run_reactor(
     reactor = build_reactor(database_path)
     reactor.solve_unit(runtime=runtime, verbose=False)
     return reactor
+
+
+# ---------------------------------------------------------------- balances
+def replay_balances(reactor: BalanceRecordingReactor) -> SimpleNamespace:
+    """Re-evaluate PharmaPy's balances at every saved time point.
+
+    Mirrors ``MultiPhaseVessel.find_output_states_from_replay``: an
+    independent copy of the vessel is set to each accepted solver state and
+    asked for its balances through the same methods the integrator calls,
+    including the positivity limiter. Nothing here re-derives a balance; the
+    terms are read out of PharmaPy's contribution buffer and energy dict.
+
+    Returns
+    -------
+    SimpleNamespace
+        ``time`` [s]; ``feeds`` (time, feed, species) inlet mass flows [kg/s];
+        ``inlet``, ``generation``, ``outlet``, ``accumulation`` (time,
+        species) [kg/s], outlet positive; ``heat`` {term: array} [W].
+    """
+    pseudo = reactor.create_pseudo()
+    collection = reactor.solver_state_collection
+    result = reactor.result
+    history = {
+        key: np.asarray(getattr(result, collection.format_key(key)))
+        for key in collection.states
+    }
+
+    feeds, inlet, generation, outlet, accumulation, heat = ([] for _ in
+                                                            range(6))
+    for i, time in enumerate(np.asarray(result.time)):
+        state = {key: values[i] for key, values in history.items()}
+        completed = pseudo.complete_state(state, time)
+        pseudo.update_phases_from_state(completed)
+
+        rates, buffer = pseudo.material_balances(
+            time, completed, limiter_dt=pseudo.positivity_horizon)
+        pseudo.energy_balances(time, completed, buffer)
+
+        terms = buffer.contributions
+        feeds.append([np.array(transfer.species_flow, dtype=float)
+                      for transfer in buffer.aux[buffer.INLET]])
+        inlet.append(terms[buffer.INLET].copy())
+        generation.append(terms[buffer.INTRAPHASE].copy())
+        outlet.append(-terms[buffer.OUTLET])
+        accumulation.append(np.array(rates, dtype=float))
+        heat.append(pseudo.energy_contributions)
+
+    return SimpleNamespace(
+        time=np.asarray(result.time),
+        feeds=np.array(feeds),
+        inlet=np.array(inlet),
+        generation=np.array(generation),
+        outlet=np.array(outlet),
+        accumulation=np.array(accumulation),
+        heat={name: np.array([h[name] for h in heat]) for name in heat[0]},
+    )
+
+
+def steady_state_gap(balances: SimpleNamespace) -> float:
+    """Largest species accumulation at the final time, relative to the
+    total inlet mass flow."""
+    return float(np.abs(balances.accumulation[-1]).max()
+                 / balances.inlet[-1].sum())
 
 
 # ---------------------------------------------------------------- plotting
@@ -343,13 +436,123 @@ def plot_settings(reactor: ContinuousReactor):
     return fig
 
 
-def save_figures(reactor: ContinuousReactor, out_dir: Path = RESULTS_DIR):
-    """Draw all three figures, save them as PNGs and return them by name."""
+def plot_mass_balance(reactor: ContinuousReactor,
+                      balances: SimpleNamespace):
+    """Inlet vs outlet species balance at the final time, as a table."""
+    import matplotlib.pyplot as plt
+
+    to_g = 1.0e3  # kg/s -> g/s
+    feeds = balances.feeds[-1] * to_g
+    generation = balances.generation[-1] * to_g
+    outlet = balances.outlet[-1] * to_g
+    accumulation = balances.accumulation[-1] * to_g
+    feed_labels = ["Feed A", "Feed B"] + [
+        f"Feed {i + 1}" for i in range(2, len(feeds))]
+
+    def cell(value):
+        return "0" if abs(value) < 5e-7 else f"{value:.4f}"
+
+    columns = (["Species"] + [f"{name} in" for name in feed_labels[:len(feeds)]]
+               + ["Generated", "Out", "Accumulated"])
+    rows = []
+    for j, name in enumerate(reactor.name_species):
+        rows.append([name] + [cell(f[j]) for f in feeds]
+                    + [cell(generation[j]), cell(outlet[j]),
+                       cell(accumulation[j])])
+    rows.append(["Total"] + [cell(f.sum()) for f in feeds]
+                + [cell(generation.sum()), cell(outlet.sum()),
+                   cell(accumulation.sum())])
+
+    total_in = feeds.sum()
+    gap = steady_state_gap(balances)
+    status = ("steady state" if gap < STEADY_STATE_TOL
+              else "NOT yet at steady state")
+
+    fig, ax = plt.subplots(figsize=(10, 0.3 * len(rows) + 1.2))
+    ax.axis("off")
+    table = ax.table(cellText=rows, colLabels=columns, cellLoc="right",
+                     loc="center")
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 1.5)
+    for (row, col), cell_obj in table.get_celld().items():
+        cell_obj.set_edgecolor("#e5e4e0")
+        if col == 0:
+            cell_obj.set_text_props(ha="left")
+        if row == 0 or row == len(rows):
+            cell_obj.set_text_props(weight="bold")
+        if row == 0:
+            cell_obj.set_facecolor("#f0efec")
+
+    ax.set_title(
+        f"R01 mass balance at t = {balances.time[-1]:g} s  [g/s]\n"
+        f"in {total_in:.4f} g/s, out {outlet.sum():.4f} g/s; "
+        f"max accumulation {gap * 100:.2g}% of inlet flow ({status})",
+        pad=12)
+    fig.text(0.5, 0.02,
+             "Terms read from PharmaPy's material contribution buffer "
+             "(inlet, intraphase, outlet) and its net species rates.",
+             ha="center", color=TEXT_MUTED, fontsize=9)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    return fig
+
+
+HEAT_TERM_LABELS = {
+    "intraphase": "Reaction (ΔH_rxn)",
+    "utility": "Jacket",
+    "inlet": "Feeds (sensible)",
+    "outlet": "Outlet",
+    "crossphase": "Phase transfer",
+    "mixing": "Mixing",
+    "shaftwork": "Shaft work",
+}
+
+
+def plot_heat_sources(balances: SimpleNamespace):
+    """Each energy-balance term vs time; positive adds heat to the vessel."""
+    import matplotlib.pyplot as plt
+
+    time_min = balances.time / 60.0
+    active = [name for name in HEAT_TERM_LABELS
+              if np.any(np.abs(balances.heat.get(name, 0.0)) > 1e-9)]
+    inactive = [HEAT_TERM_LABELS[name] for name in HEAT_TERM_LABELS
+                if name in balances.heat and name not in active]
+    net = sum(balances.heat[name] for name in balances.heat)
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    ax.axhline(0.0, color=TEXT_MUTED, lw=0.8)
+    for color, name in zip(SERIES_COLORS, active):
+        ax.plot(time_min, balances.heat[name], color=color, lw=2,
+                label=HEAT_TERM_LABELS[name])
+    ax.plot(time_min, net, color=TEXT_PRIMARY, lw=1.5, ls="--",
+            label="Net (sum)")
+
+    ax.set_xlabel("Time [min]")
+    ax.set_ylabel("Heat rate into vessel [W]")
+    ax.set_title("R01 heat sources from PharmaPy's energy balance")
+    ax.legend(loc="upper right", bbox_to_anchor=(1.0, 0.88), frameon=False)
+    ax.grid(True, color="#e5e4e0", lw=0.8)
+    ax.spines[["top", "right"]].set_visible(False)
+    if inactive:
+        fig.text(0.5, 0.01, "Zero throughout: " + ", ".join(inactive),
+                 ha="center", color=TEXT_MUTED, fontsize=9)
+    fig.tight_layout(rect=(0, 0.03, 1, 1))
+    return fig
+
+
+def save_figures(reactor: BalanceRecordingReactor,
+                 out_dir: Path = RESULTS_DIR,
+                 balances: SimpleNamespace | None = None):
+    """Draw all figures, save them as PNGs and return them by name."""
+    if balances is None:
+        balances = replay_balances(reactor)
     out_dir.mkdir(parents=True, exist_ok=True)
     figures = {
         "R01_profiles": plot_profiles(reactor),
         "R01_native": plot_native(reactor),
         "R01_settings": plot_settings(reactor),
+        "R01_mass_balance": plot_mass_balance(reactor, balances),
+        "R01_heat_sources": plot_heat_sources(balances),
     }
     for name, fig in figures.items():
         fig.savefig(out_dir / f"{name}.png", dpi=150, bbox_inches="tight")
@@ -375,7 +578,25 @@ if __name__ == "__main__":
         print(f"  {name}: {concentration:.6f}")
     print(f"Final temperature: {np.ravel(r01.result.global_temp)[-1]:.3f} K")
 
-    save_figures(r01)
+    balances = replay_balances(r01)
+    print(f"\nMass balance at t = {balances.time[-1]:g} s (g/s):")
+    print(f"  {'species':<8}{'in':>10}{'generated':>11}{'out':>10}"
+          f"{'accum.':>10}")
+    for j, name in enumerate(r01.name_species):
+        print(f"  {name:<8}{balances.inlet[-1][j] * 1e3:>10.4f}"
+              f"{balances.generation[-1][j] * 1e3:>11.4f}"
+              f"{balances.outlet[-1][j] * 1e3:>10.4f}"
+              f"{balances.accumulation[-1][j] * 1e3:>10.4f}")
+    gap = steady_state_gap(balances)
+    if gap >= STEADY_STATE_TOL:
+        print(f"  WARNING: accumulation is {gap:.2%} of the inlet flow; "
+              "increase RUNTIME to reach steady state.")
+
+    print("\nHeat terms at the final time (W):")
+    for name, values in balances.heat.items():
+        print(f"  {HEAT_TERM_LABELS.get(name, name):<20}{values[-1]:>10.3f}")
+
+    save_figures(r01, balances=balances)
     print(f"Figures saved to {RESULTS_DIR}")
 
     if not args.no_show:
