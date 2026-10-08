@@ -1,6 +1,6 @@
 """Several feed streams into one refactored ContinuousReactor.
 
-Uses PharmaPy as installed, without modifying it, and asks two questions:
+Uses PharmaPy as installed, without modifying it, and asks:
 
     Stage A  Isolated reactor, several feeds   -- do N separate inlets behave
              exactly like one premixed inlet? (material, then energy)
@@ -8,6 +8,16 @@ Uses PharmaPy as installed, without modifying it, and asks two questions:
              shared reactor receive both upstream trajectories?
     Stage C  Same layout through SimulationExec -- reports what PharmaPy's own
              flowsheet wiring delivers (INFO only, never fails the run)
+    Stage D  One upstream reactor + fresh feeds -- through SimulationExec, do
+             feeds given as extra_inlets survive the handover, match the same
+             inlets wired by hand, and close R03's mass balance?
+
+Stage C is expected to show one inlet on R03: SimulationExec connects each
+unit only to the next one in run order, so R01 feeds R02 (which has no edge
+to it) and R02 feeds R03. Stage D is the supported route instead -- one
+upstream unit per vessel, any number of fresh feeds via extra_inlets. It
+needs a PharmaPy that has MultiPhaseVessel.extra_inlets
+(SirIcyHot/PharmaPy#1) and reports SKIP on one that does not.
 
 Run it like FlowsheetTester.py:
 
@@ -34,6 +44,7 @@ from PharmaPy.IntegratorBackends import AssimuloBackend, ScipyBackend
 from PharmaPy.Kinetics import RxnKinetics
 from PharmaPy.Connections import Connection
 from PharmaPy.SimExec import SimulationExec
+from PharmaPy.Commons import trapezoidal_rule
 
 faulthandler.enable(file=sys.stderr, all_threads=True)
 
@@ -85,6 +96,9 @@ TEMPS = [293.15, 313.15, 333.15, 303.15]       # K
 # Pass thresholds.
 TOL_MATCH = 1e-6        # N feeds vs premixed feed, relative
 TOL_FLOW = 1e-2         # shared reactor outflow vs summed upstream outflow
+TOL_BALANCE = 1e-4      # mass in - out - accumulated, relative to mass in
+
+IDX_SOLVENT = 4
 
 
 # ---------------------------------------------------------------- builders
@@ -175,6 +189,44 @@ def feed_from_upstream(destination, *sources):
         Connection(source_uo=source, destination_uo=destination).transfer_data()
         kept.extend(destination.inlet_connections)
     destination.inlet_connections = kept
+
+
+class StageSkipped(Exception):
+    """The installed PharmaPy lacks what a stage needs."""
+
+
+def species_mw(unit):
+    return np.asarray(unit.Phases.Liquids[0].mw, dtype=float)
+
+
+def outflow_mass(unit):
+    """Mass of each species a reactor discharged, from its trajectory."""
+    result = unit.result
+    mass_flow = (np.asarray(result.mole_conc_liquid0, dtype=float)
+                 * species_mw(unit)
+                 * np.asarray(result.outlet_vol_flow,
+                              dtype=float)[:, np.newaxis])
+    time = np.asarray(result.time, dtype=float)
+    return np.array([trapezoidal_rule(time, mass_flow[:, j])
+                     for j in range(mass_flow.shape[1])])
+
+
+def feed_mass(streams):
+    """Mass of each species constant feeds deliver over RUNTIME."""
+    return sum(np.asarray(s.mass_flow, dtype=float)
+               * np.asarray(s.mass_frac, dtype=float)
+               for s in streams) * RUNTIME
+
+
+def accumulated_mass(unit):
+    mass_j = np.asarray(unit.result.mass_j_liquid0, dtype=float)
+    return mass_j[-1] - mass_j[0]
+
+
+def carries_trajectory(connection):
+    stream = connection.stream
+    return any(getattr(obj, 'y_upstream', None) is not None
+               for obj in [stream] + list(stream))
 
 
 # ---------------------------------------------------------------- stages
@@ -278,12 +330,80 @@ def stage_c_simulationexec():
                ', '.join(overwritten) or 'none'))
 
 
+def stage_d_extra_inlets():
+    """R01 -> R03 through SimulationExec, R03 also fed fresh streams."""
+    if not hasattr(ContinuousReactor, 'extra_inlets'):
+        raise StageSkipped('installed PharmaPy has no extra_inlets')
+
+    def fresh_feeds():
+        return [conc_feed(np.array([0, 1.0, 0, 0, 0])),             # B only
+                mass_feed(0.003, np.array([0, 0, 0, 0, 1.0]),       # solvent
+                          TEMP_INIT)]
+
+    flst = SimulationExec(PATH, flowsheet='R01 --> R03')
+    flst.R01 = reactor(conc_feed(np.array([1.0, 0, 0, 0, 0])))      # A only
+    # A placeholder Inlet, which the flowsheet must replace with R01's
+    # outlet; the extras must survive that.
+    flst.R03 = reactor(conc_feed(np.array([1.0, 0, 0, 0, 0])))
+    extras = fresh_feeds()
+    flst.R03.extra_inlets = extras
+    flst.SolveFlowsheet(kwargs_run={name: {'runtime': RUNTIME,
+                                           'verbose': False}
+                                    for name in ('R01', 'R03')},
+                        verbose=False)
+
+    r03 = flst.R03
+    inlets = r03.inlet_connections
+    if len(inlets) != 1 + len(extras):
+        raise AssertionError('R03 has %d inlets, expected %d'
+                             % (len(inlets), 1 + len(extras)))
+    if not carries_trajectory(inlets[0]):
+        raise AssertionError("R03's first inlet is not R01's outlet")
+    for connection, stream in zip(inlets[1:], extras):
+        if list(connection.stream)[0] is not stream:
+            raise AssertionError('an extra inlet was replaced or reordered')
+
+    # Control: the same three inlets installed by hand, no extra_inlets.
+    control = reactor()
+    Connection(source_uo=flst.R01, destination_uo=control).transfer_data()
+    upstream = control.inlet_connections[0].stream
+    control.Inlet = [upstream] + fresh_feeds()
+    control.solve_unit(runtime=RUNTIME, verbose=False)
+
+    gaps = {key: rel_gap(end(r03, key), end(control, key))
+            for key in ('mass_j_liquid0', 'Total_m_in_vessel',
+                        'outlet_vol_flow')}
+    worst = max(gaps, key=gaps.get)
+    if gaps[worst] > TOL_MATCH:
+        raise AssertionError('R03 %s differs from hand-wired control by %.2e'
+                             % (worst, gaps[worst]))
+
+    # Mass balance on R03: in (R01 outflow + fresh feeds) - out = held.
+    mass_in = outflow_mass(flst.R01) + feed_mass(extras)
+    residual = mass_in - outflow_mass(r03) - accumulated_mass(r03)
+    scale = mass_in.sum()
+    total_rel = abs(residual.sum()) / scale
+    solvent_rel = abs(residual[IDX_SOLVENT]) / scale
+    if max(total_rel, solvent_rel) > TOL_BALANCE:
+        raise AssertionError(
+            'R03 mass balance off: total %.2e, solvent %.2e (of %.4g kg in)'
+            % (total_rel, solvent_rel, scale))
+
+    share = feed_mass(extras).sum() / scale
+    return ('R03 inlets %d; matches hand-wired control to %.0e; balance '
+            'total %.1e, solvent %.1e; fresh feeds %.0f%% of %.3g kg in'
+            % (len(inlets), gaps[worst], total_rel, solvent_rel,
+               100 * share, scale))
+
+
 STAGES = (
     ('A  isolated reactor, 2-4 feeds vs premixed   ', stage_a_isolated, True),
     ('B  R01 + R02 -> R03, wired by hand            ',
      stage_b_manual_two_into_one, True),
     ('C  R01 + R02 -> R03 via SimulationExec (info) ',
      stage_c_simulationexec, False),
+    ('D  R01 -> R03 + fresh feeds via extra_inlets  ',
+     stage_d_extra_inlets, True),
 )
 
 
@@ -294,6 +414,9 @@ def main():
         try:
             detail = fn()
             status = 'PASS' if counts else 'INFO'
+        except StageSkipped as exc:
+            detail = str(exc)
+            status = 'SKIP'
         except Exception as exc:
             traceback.print_exc()
             detail = '%s: %s' % (type(exc).__name__, exc)
