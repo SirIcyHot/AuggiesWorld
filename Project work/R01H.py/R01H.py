@@ -69,9 +69,10 @@ DEFAULT_DATABASE_PATH = HERE / "compound_databaseActual.json"
 RESULTS_DIR = HERE / "results"
 
 # ---------------------------------------------------------------- settings
-REACTIONS = ["A + C --> F"]
+REACTIONS = ["2 A + C --> F"]
 RATE_CONSTANTS = np.array([1.0e-2])  # L/mol/s, at KINETICS_TEMP_REF
 ACTIVATION_ENERGIES = np.array([4.0e4])  # J/mol
+PARAMS_F_DUMMY = np.array([[1.0, 1.0]])
 KINETICS_TEMP_REF = 25+273.15 # K, rate constants above are quoted here
 HEAT_OF_REACTION = -3.0e3  # J/mol, negative = exothermic
 
@@ -83,7 +84,7 @@ FEED_TEMPERATURE = 313.15  # K
 FEED_A = {"A": 0.0207}  # mass fraction, ~0.33 mol/L of A
 FEED_B = {"C": 0.0459}  # mass fraction, ~0.33 mol/L of C
 
-REACTOR_MASS = 10.0  # kg, initial charge (~0.01 m**3 of water)
+REACTOR_VOLUME = 0.01  # m**3, initial liquid volume
 REACTOR_DIAMETER = 0.2  # m, jacket area = 4 V / D
 REACTOR_H_CONV = 1000.0  # W/m**2/K, vessel side
 INITIAL_TEMPERATURE = 313.15  # K
@@ -93,15 +94,38 @@ COOLANT_MASS_FLOW = 0.1  # kg/s
 COOLANT_TEMPERATURE = 10+273.15  # K
 COOLANT_H_CONV = 1000.0  # W/m**2/K, jacket side
 
-# 7.2 residence times: long enough that the end of the run is a steady
-# state (accumulation below STEADY_STATE_TOL of the throughput).
-RUNTIME = 3600.0  # s
+# Run for ten residence times so the result reaches the intended steady-state
+# region even when the reactor volume or feed flow rates change.
+NUM_RESIDENCE_TIMES = 10.0
 STEADY_STATE_TOL = 1.0e-2  # accumulation / inlet mass flow, per species
 
 # Validated categorical slots 1-4 (blue, orange, aqua, yellow).
 SERIES_COLORS = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100")
 TEXT_PRIMARY = "#0b0b0b"
 TEXT_MUTED = "#52514e"
+
+
+def custom_rate_model(
+    conc: np.ndarray,
+    params_f: np.ndarray,
+) -> np.ndarray:
+    """Return ``exp(-[A]) [C]`` for the custom reaction model."""
+    conc = np.asarray(conc)
+    rate = np.exp(-conc[..., 0]) * conc[..., 1]
+    return rate[..., np.newaxis]
+
+
+def custom_rate_model_derivative(
+    conc: np.ndarray,
+    params_f: np.ndarray,
+) -> np.ndarray:
+    """Derivative of the custom rate model with respect to concentrations."""
+    conc = np.asarray(conc)
+    factor = np.exp(-conc[..., 0])
+    derivative = np.zeros(conc.shape[:-1] + (1, conc.shape[-1]))
+    derivative[..., 0, 0] = -factor * conc[..., 1]
+    derivative[..., 0, 1] = factor
+    return derivative[0] if conc.ndim == 1 else derivative
 
 
 # ---------------------------------------------------------------- builders
@@ -175,6 +199,46 @@ def make_feed(
         name_solv=solvent_name,
     )
 
+
+def build_kinetics(database_path: Path) -> RxnKinetics:
+    """Create the configured kinetics model across PharmaPy versions.
+
+    Some PharmaPy releases reference ``params_f`` before assigning it when a
+    custom kinetic model is supplied. The built-in model initializes the same
+    parameter state correctly, so its callbacks can be replaced after
+    construction for those releases.
+    """
+    kinetics_kwargs = dict(
+        path=str(database_path),
+        rxn_list=REACTIONS,
+        k_params=RATE_CONSTANTS,
+        ea_params=ACTIVATION_ENERGIES,
+        params_f=PARAMS_F_DUMMY,
+        df_dstates=custom_rate_model_derivative,
+        temp_ref=KINETICS_TEMP_REF,
+        delta_hrxn=HEAT_OF_REACTION,
+    )
+    try:
+        return RxnKinetics(
+            **kinetics_kwargs,
+            kinetic_model=custom_rate_model,
+        )
+    except UnboundLocalError as error:
+        if "params_f" not in str(error):
+            raise
+
+    kinetics = RxnKinetics(**kinetics_kwargs)
+    kinetics.kinetic_model = custom_rate_model
+    kinetics.df_dstates = custom_rate_model_derivative
+    return kinetics
+
+
+def reactor_residence_time(reactor: ContinuousReactor) -> float:
+    """Return the initial residence time implied by the configured volume."""
+    initial_mass = float(reactor.Phases.Liquids[0].mass)
+    return initial_mass / (FLOW_A + FLOW_B)
+
+
 def build_reactor(
     database_path: Path | str = DEFAULT_DATABASE_PATH,
 ) -> ContinuousReactor:
@@ -193,17 +257,10 @@ def build_reactor(
         temp=INITIAL_TEMPERATURE,
         mass_frac=named_mass_fraction(INITIAL_REACTOR, species_names,
                                       solvent_name),
-        mass=REACTOR_MASS,
+        vol=REACTOR_VOLUME,
         name_solv=solvent_name,
     )
-    reactor.RxnKinetics = RxnKinetics(
-        path=str(database_path),
-        rxn_list=REACTIONS,
-        k_params=RATE_CONSTANTS,
-        ea_params=ACTIVATION_ENERGIES,
-        temp_ref=KINETICS_TEMP_REF,
-        delta_hrxn=HEAT_OF_REACTION,
-    )
+    reactor.RxnKinetics = build_kinetics(database_path)
     reactor.Utility = CoolingWater(
         mass_flow=COOLANT_MASS_FLOW,
         temp_in=COOLANT_TEMPERATURE,
@@ -218,10 +275,12 @@ def build_reactor(
 
 def run_reactor(
     database_path: Path | str = DEFAULT_DATABASE_PATH,
-    runtime: float = RUNTIME,
+    runtime: float | None = None,
 ) -> ContinuousReactor:
     """Solve R01 and return it with ``result`` populated."""
     reactor = build_reactor(database_path)
+    if runtime is None:
+        runtime = NUM_RESIDENCE_TIMES * reactor_residence_time(reactor)
     reactor.solve_unit(runtime=runtime, verbose=False)
     return reactor
 
@@ -432,7 +491,8 @@ def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
                 + " (mass frac.)")
 
     initial_vol = float(np.ravel(reactor.result.vessel_vol)[0])
-    tau = REACTOR_MASS / (FLOW_A + FLOW_B)
+    initial_mass = float(reactor.Phases.Liquids[0].mass)
+    tau = reactor_residence_time(reactor)
     area = 4 * initial_vol / REACTOR_DIAMETER
     u_ht = 1.0 / (1.0 / REACTOR_H_CONV + 1.0 / COOLANT_H_CONV)
     final = reactor.result
@@ -446,8 +506,8 @@ def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
 
     return [
         ("Initial conditions", "Temperature", f"{INITIAL_TEMPERATURE:g} K"),
-        ("Initial conditions", "Mass",
-         f"{REACTOR_MASS:g} kg ({initial_vol:.4g} m³)"),
+        ("Initial conditions", "Volume",
+         f"{initial_vol:.4g} m³ ({initial_mass:g} kg derived)"),
         ("Initial conditions", "Charge", composition(INITIAL_REACTOR)),
         ("Feeds", "Feed A", f"{FLOW_A:g} kg/s, {composition(FEED_A)}"),
         ("Feeds", "Feed B", f"{FLOW_B:g} kg/s, {composition(FEED_B)}"),
@@ -464,7 +524,8 @@ def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
                               f"{COOLANT_TEMPERATURE:g} K"),
         ("Jacket", "U · A", f"{u_ht:g} W/m²/K × {area:g} m² "
                             f"= {u_ht * area:g} W/K"),
-        ("Run", "Runtime", f"{RUNTIME:g} s"),
+        ("Run", "Runtime",
+         f"{NUM_RESIDENCE_TIMES * tau:g} s"),
         ("Run", "Integrator", type(reactor.integrator).__name__),
         ("Run", "Final T", f"{np.ravel(final.global_temp)[-1]:.3f} K"),
         ("Run", "Final [mass frac.]",
@@ -661,7 +722,7 @@ if __name__ == "__main__":
     gap = steady_state_gap(balances)
     if gap >= STEADY_STATE_TOL:
         print(f"  WARNING: accumulation is {gap:.2%} of the inlet flow; "
-              "increase RUNTIME to reach steady state.")
+              "increase NUM_RESIDENCE_TIMES to reach steady state.")
 
     print("\nHeat terms at the final time (W):")
     for name, values in balances.heat.items():
