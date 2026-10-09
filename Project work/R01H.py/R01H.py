@@ -11,19 +11,26 @@ vessel takes a list of inlet streams directly, so the separate mixer unit the
 legacy ``Reactors.CSTR`` needed is gone. Feed compositions are supplied by
 compound name; the database controls the order PharmaPy uses internally.
 
+Everything is specified and reported on a mass basis: feeds as mass flows
+[kg/s] with solute mass fractions, the initial charge as a mass [kg] with
+solute mass fractions, and compositions plotted as mass fractions. The
+solvent makes up whatever mass fraction the solutes leave. The kinetics are
+the exception: PharmaPy evaluates the rate law on molar concentrations, so
+rate constants stay in L/mol/s.
+
 The reactor is jacketed rather than isothermal so that temperature is a solved
 state: the heat of reaction raises it, the jacket and the feeds pull it back,
 and the Arrhenius term feeds it back into the rate. That is what makes the
-Ca-vs-T phase portrait meaningful.
+w_A-vs-T phase portrait meaningful.
 
 Run it with::
 
-    python R01.py                 # solve, save figures, show them
-    python R01.py --no-show       # solve and save figures only
+    python R01H.py                # solve, save figures, show them
+    python R01H.py --no-show      # solve and save figures only
 
 Figures are written to ``results/`` next to this file:
 
-    R01_profiles.png   Ca vs time, T vs time, Ca vs T
+    R01_profiles.png   w_A vs time, T vs time, w_A vs T
     R01_native.png     the same run through PharmaPy.Plotting.plot_function
     R01_settings.png   the settings and initial conditions used for the run
     R01_mass_balance.png  inlet vs outlet species balance at the final time
@@ -68,17 +75,19 @@ ACTIVATION_ENERGIES = np.array([4.0e4])  # J/mol
 KINETICS_TEMP_REF = 313.15  # K, rate constants above are quoted here
 HEAT_OF_REACTION = -5.0e4  # J/mol, negative = exothermic
 
-FLOW_A = 1.0e-5  # m**3/s
-FLOW_B = 1.0e-5  # m**3/s
+# Compositions are solute mass fractions; the solvent is the remainder.
+# B is the solvent here, so it never needs listing: FEED_B is pure B.
+FLOW_A = 1.0e-2  # kg/s
+FLOW_B = 1.0e-2  # kg/s
 FEED_TEMPERATURE = 313.15  # K
-FEED_A = {"A": 0.33}  # mol/L
-FEED_B = {"B": 0.33}  # mol/L
+FEED_A = {"A": 0.0207}  # mass fraction, ~0.33 mol/L of A
+FEED_B = {}  # mass fraction, pure solvent
 
-REACTOR_VOLUME = 0.01  # m**3
+REACTOR_MASS = 10.0  # kg, initial charge (~0.01 m**3 of water)
 REACTOR_DIAMETER = 0.2  # m, jacket area = 4 V / D
 REACTOR_H_CONV = 1000.0  # W/m**2/K, vessel side
 INITIAL_TEMPERATURE = 313.15  # K
-INITIAL_REACTOR = {"A": 0.0, "B": 0.0, "C": 0.0}  # mol/L, rest is solvent
+INITIAL_REACTOR = {}  # mass fraction, pure solvent
 
 COOLANT_MASS_FLOW = 0.1  # kg/s
 COOLANT_TEMPERATURE = 313.15  # K
@@ -132,22 +141,40 @@ def database_solvent(species_names: tuple[str, ...]) -> str:
     )
 
 
-def named_mole_concentration(
+def named_mass_fraction(
     composition: Mapping[str, float],
     species_names: tuple[str, ...],
+    solvent_name: str,
 ) -> np.ndarray:
-    """Convert a named composition to PharmaPy's ordered concentration array."""
+    """Convert named solute mass fractions to PharmaPy's ordered array.
+
+    The solvent takes the remainder. Listing the solvent explicitly is
+    allowed, but then the fractions must already sum to 1.
+    """
     unknown_names = set(composition) - set(species_names)
     if unknown_names:
         names = ", ".join(sorted(unknown_names))
         raise KeyError(f"Unknown compounds in composition: {names}")
     if any(value < 0.0 for value in composition.values()):
-        raise ValueError("Mole concentrations cannot be negative.")
+        raise ValueError("Mass fractions cannot be negative.")
 
-    return np.array(
+    fractions = np.array(
         [composition.get(name, 0.0) for name in species_names],
         dtype=float,
     )
+    total = fractions.sum()
+
+    if solvent_name in composition:
+        if not np.isclose(total, 1.0):
+            raise ValueError(
+                f"Mass fractions including the solvent sum to {total:g}, "
+                "not 1.")
+        return fractions
+
+    if total > 1.0:
+        raise ValueError(f"Solute mass fractions sum to {total:g} > 1.")
+    fractions[species_names.index(solvent_name)] = 1.0 - total
+    return fractions
 
 
 def make_feed(
@@ -157,12 +184,13 @@ def make_feed(
     species_names: tuple[str, ...],
     solvent_name: str,
 ) -> LiquidStream:
-    """Create one named-composition liquid feed."""
+    """Create one named-composition liquid feed; flow_rate in kg/s."""
     return LiquidStream(
         str(database_path),
         temp=FEED_TEMPERATURE,
-        mole_conc=named_mole_concentration(composition, species_names),
-        vol_flow=flow_rate,
+        mass_frac=named_mass_fraction(composition, species_names,
+                                      solvent_name),
+        mass_flow=flow_rate,
         name_solv=solvent_name,
     )
 
@@ -182,8 +210,9 @@ def build_reactor(
     reactor.Phases = LiquidPhase(
         str(database_path),
         temp=INITIAL_TEMPERATURE,
-        mole_conc=named_mole_concentration(INITIAL_REACTOR, species_names),
-        vol=REACTOR_VOLUME,
+        mass_frac=named_mass_fraction(INITIAL_REACTOR, species_names,
+                                      solvent_name),
+        mass=REACTOR_MASS,
         name_solv=solvent_name,
     )
     reactor.RxnKinetics = RxnKinetics(
@@ -280,27 +309,33 @@ def steady_state_gap(balances: SimpleNamespace) -> float:
 
 
 # ---------------------------------------------------------------- plotting
-def species_conc(reactor: ContinuousReactor, name: str) -> np.ndarray:
-    """Liquid-phase concentration history of one species [mol/L]."""
+def mass_fractions(reactor: ContinuousReactor) -> np.ndarray:
+    """Liquid-phase mass-fraction history, (time, species)."""
+    mass_j = np.asarray(reactor.result.mass_j_liquid0, dtype=float)
+    return mass_j / mass_j.sum(axis=1, keepdims=True)
+
+
+def species_mass_frac(reactor: ContinuousReactor, name: str) -> np.ndarray:
+    """Liquid-phase mass-fraction history of one species."""
     index = list(reactor.name_species).index(name)
-    return np.asarray(reactor.result.mole_conc_liquid0)[:, index]
+    return mass_fractions(reactor)[:, index]
 
 
 def plot_profiles(reactor: ContinuousReactor):
-    """Ca vs time, T vs time and the Ca-T phase portrait, side by side."""
+    """w_A vs time, T vs time and the w_A-T phase portrait, side by side."""
     import matplotlib.pyplot as plt
 
     result = reactor.result
     time_min = np.asarray(result.time) / 60.0
-    conc_a = species_conc(reactor, "A")
+    frac_a = species_mass_frac(reactor, "A")
     temp = np.ravel(result.global_temp)
 
     fig, (ax_ca, ax_t, ax_phase) = plt.subplots(1, 3, figsize=(15, 4.5))
 
-    ax_ca.plot(time_min, conc_a, color=SERIES_COLORS[0], lw=2)
+    ax_ca.plot(time_min, frac_a, color=SERIES_COLORS[0], lw=2)
     ax_ca.set_xlabel("Time [min]")
-    ax_ca.set_ylabel("$C_A$ [mol/L]")
-    ax_ca.set_title("Concentration of A")
+    ax_ca.set_ylabel("$w_A$ [kg/kg]")
+    ax_ca.set_title("Mass fraction of A")
 
     ax_t.plot(time_min, temp, color=SERIES_COLORS[1], lw=2)
     ax_t.axhline(COOLANT_TEMPERATURE, color=TEXT_MUTED, lw=1, ls="--")
@@ -311,19 +346,19 @@ def plot_profiles(reactor: ContinuousReactor):
     ax_t.set_ylabel("$T$ [K]")
     ax_t.set_title("Reactor temperature")
 
-    ax_phase.plot(conc_a, temp, color=SERIES_COLORS[2], lw=2)
-    ax_phase.plot(conc_a[0], temp[0], "o", ms=8, color=SERIES_COLORS[2],
+    ax_phase.plot(frac_a, temp, color=SERIES_COLORS[2], lw=2)
+    ax_phase.plot(frac_a[0], temp[0], "o", ms=8, color=SERIES_COLORS[2],
                   mec="white", mew=2)
-    ax_phase.plot(conc_a[-1], temp[-1], "s", ms=8, color=SERIES_COLORS[2],
+    ax_phase.plot(frac_a[-1], temp[-1], "s", ms=8, color=SERIES_COLORS[2],
                   mec="white", mew=2)
-    ax_phase.annotate("start", (conc_a[0], temp[0]), xytext=(8, 0),
+    ax_phase.annotate("start", (frac_a[0], temp[0]), xytext=(8, 0),
                       textcoords="offset points", va="center", fontsize=9)
-    ax_phase.annotate(f"t = {time_min[-1]:.0f} min", (conc_a[-1], temp[-1]),
+    ax_phase.annotate(f"t = {time_min[-1]:.0f} min", (frac_a[-1], temp[-1]),
                       xytext=(-8, 0), textcoords="offset points",
                       ha="right", va="center", fontsize=9)
-    ax_phase.set_xlabel("$C_A$ [mol/L]")
+    ax_phase.set_xlabel("$w_A$ [kg/kg]")
     ax_phase.set_ylabel("$T$ [K]")
-    ax_phase.set_title("$C_A$ vs $T$")
+    ax_phase.set_title("$w_A$ vs $T$")
 
     for axis in (ax_ca, ax_t, ax_phase):
         axis.grid(True, color="#e5e4e0", lw=0.8)
@@ -354,10 +389,10 @@ def plot_native(reactor: ContinuousReactor):
     solutes = [name for name in reactor.name_species if name != solvent_name]
     fig, axes = plot_function(
         view,
-        (["mole_conc_liquid0", solutes], "global_temp", "q_ht"),
+        (["mass_j_liquid0", solutes], "global_temp", "q_ht"),
         fig_map=(0, 1, 2),
         ncols=3,
-        ylabels=("C_j", "T", "Q_ht"),
+        ylabels=("m_j", "T", "Q_ht"),
         figsize=(15, 4.5),
     )
     for axis in axes:
@@ -373,26 +408,29 @@ def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
         solutes = {k: v for k, v in named.items() if v}
         if not solutes:
             return "solvent only"
-        return ", ".join(f"{k} {v:g}" for k, v in solutes.items())
+        return (", ".join(f"{k} {v:g}" for k, v in solutes.items())
+                + " (mass frac.)")
 
-    tau = REACTOR_VOLUME / (FLOW_A + FLOW_B)
-    area = 4 * REACTOR_VOLUME / REACTOR_DIAMETER
+    initial_vol = float(np.ravel(reactor.result.vessel_vol)[0])
+    tau = REACTOR_MASS / (FLOW_A + FLOW_B)
+    area = 4 * initial_vol / REACTOR_DIAMETER
     u_ht = 1.0 / (1.0 / REACTOR_H_CONV + 1.0 / COOLANT_H_CONV)
     final = reactor.result
-    final_conc = np.asarray(final.mole_conc_liquid0)[-1]
+    final_frac = mass_fractions(reactor)[-1]
     solvent_name = database_solvent(tuple(reactor.name_species))
     # Clip solver roundoff (e.g. -1e-25) so it prints as 0, not -0.0000.
-    final_solutes = {name: max(c, 0.0)
-                     for name, c in zip(reactor.name_species, final_conc)
-                     if name != solvent_name}
+    # Species that never appear are left out so the row fits the table.
+    final_solutes = {name: max(w, 0.0)
+                     for name, w in zip(reactor.name_species, final_frac)
+                     if name != solvent_name and w > 1e-9}
 
     return [
         ("Initial conditions", "Temperature", f"{INITIAL_TEMPERATURE:g} K"),
-        ("Initial conditions", "Volume", f"{REACTOR_VOLUME:g} m³"),
-        ("Initial conditions", "Charge [mol/L]",
-         composition(INITIAL_REACTOR)),
-        ("Feeds", "Feed A", f"{FLOW_A:g} m³/s, {composition(FEED_A)} mol/L"),
-        ("Feeds", "Feed B", f"{FLOW_B:g} m³/s, {composition(FEED_B)} mol/L"),
+        ("Initial conditions", "Mass",
+         f"{REACTOR_MASS:g} kg ({initial_vol:.4g} m³)"),
+        ("Initial conditions", "Charge", composition(INITIAL_REACTOR)),
+        ("Feeds", "Feed A", f"{FLOW_A:g} kg/s, {composition(FEED_A)}"),
+        ("Feeds", "Feed B", f"{FLOW_B:g} kg/s, {composition(FEED_B)}"),
         ("Feeds", "Feed temperature", f"{FEED_TEMPERATURE:g} K"),
         ("Feeds", "Residence time", f"{tau:g} s ({tau / 60:.1f} min)"),
         ("Kinetics", "Reactions", "; ".join(REACTIONS)),
@@ -409,8 +447,8 @@ def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
         ("Run", "Runtime", f"{RUNTIME:g} s"),
         ("Run", "Integrator", type(reactor.integrator).__name__),
         ("Run", "Final T", f"{np.ravel(final.global_temp)[-1]:.3f} K"),
-        ("Run", "Final [mol/L]",
-         ", ".join(f"{k} {v:.4f}" for k, v in final_solutes.items())),
+        ("Run", "Final [mass frac.]",
+         ", ".join(f"{k} {v:.5f}" for k, v in final_solutes.items())),
     ]
 
 
@@ -586,10 +624,9 @@ if __name__ == "__main__":
     database = Path(os.environ.get("PHARMAPY_DATABASE", DEFAULT_DATABASE_PATH))
     r01 = run_reactor(database)
 
-    print("Final CSTR concentrations (mol/L):")
-    for name, concentration in zip(r01.name_species,
-                                   r01.result.mole_conc_liquid0[-1]):
-        print(f"  {name}: {concentration:.6f}")
+    print("Final CSTR mass fractions:")
+    for name, fraction in zip(r01.name_species, mass_fractions(r01)[-1]):
+        print(f"  {name}: {fraction:.6f}")
     print(f"Final temperature: {np.ravel(r01.result.global_temp)[-1]:.3f} K")
 
     balances = replay_balances(r01)
