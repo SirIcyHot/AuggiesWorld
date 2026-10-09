@@ -4,7 +4,7 @@ The flowsheet is::
 
     FEED_A --+
              +--> R01
-    FEED_B --+
+    FEED_C --+
 
 ``R01`` is ``PharmaPy.Reactors_Refactored.ContinuousReactor``. The refactored
 vessel takes a list of inlet streams directly, so the separate mixer unit the
@@ -62,26 +62,26 @@ DEFAULT_DATABASE_PATH = HERE / "compound_databaseActual.json"
 RESULTS_DIR = HERE / "results"
 
 # ---------------------------------------------------------------- settings
-REACTIONS = ["A + B --> C"]
+REACTIONS = ["A + C --> F"]
 RATE_CONSTANTS = np.array([1.0e-2])  # L/mol/s, at KINETICS_TEMP_REF
 ACTIVATION_ENERGIES = np.array([4.0e4])  # J/mol
-KINETICS_TEMP_REF = 313.15  # K, rate constants above are quoted here
-HEAT_OF_REACTION = -5.0e4  # J/mol, negative = exothermic
+KINETICS_TEMP_REF = 25+273.15 # K, rate constants above are quoted here
+HEAT_OF_REACTION = -3.0e3  # J/mol, negative = exothermic
 
 FLOW_A = 1.0e-5  # m**3/s
-FLOW_B = 1.0e-5  # m**3/s
-FEED_TEMPERATURE = 313.15  # K
-FEED_A = {"A": 0.33}  # mol/L
-FEED_B = {"B": 0.33}  # mol/L
+FLOW_C = 1.0e-5  # m**3/s
+FEED_TEMPERATURE = 20+273.15  # K
+FEED_A = {"A": 5.62, "B": 45.85}  # mol/L
+FEED_C = {"C": 0.33, "B": 0.33}  # mol/L
 
 REACTOR_VOLUME = 0.01  # m**3
 REACTOR_DIAMETER = 0.2  # m, jacket area = 4 V / D
 REACTOR_H_CONV = 1000.0  # W/m**2/K, vessel side
-INITIAL_TEMPERATURE = 313.15  # K
-INITIAL_REACTOR = {"A": 0.0, "B": 0.0, "C": 0.0}  # mol/L, rest is solvent
+INITIAL_TEMPERATURE = 10+273.15  # K
+INITIAL_REACTOR = {"A": 0.0, "C": 0.0, "F": 0.0}  # mol/L, rest is solvent
 
 COOLANT_MASS_FLOW = 0.1  # kg/s
-COOLANT_TEMPERATURE = 313.15  # K
+COOLANT_TEMPERATURE = 10+273.15  # K
 COOLANT_H_CONV = 1000.0  # W/m**2/K, jacket side
 
 # 7.2 residence times: long enough that the end of the run is a steady
@@ -93,25 +93,6 @@ STEADY_STATE_TOL = 1.0e-2  # accumulation / inlet mass flow, per species
 SERIES_COLORS = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100")
 TEXT_PRIMARY = "#0b0b0b"
 TEXT_MUTED = "#52514e"
-
-
-class BalanceRecordingReactor(ContinuousReactor):
-    """ContinuousReactor that keeps the energy-balance terms it computes.
-
-    ``MultiPhaseVessel.energy_balances`` collects every heat term into a
-    local ``contributions`` dict, sums it and returns only dT/dt. The
-    shaft-work hook is the last term it adds before summing, so copying the
-    dict there captures every term exactly as PharmaPy computed it. Nothing
-    about the balance itself changes.
-    """
-
-    def add_shaftwork_energy_terms(self, contributions, time,
-                                   completed_state):
-        super().add_shaftwork_energy_terms(contributions, time,
-                                           completed_state)
-        self.energy_contributions = {
-            name: float(value) for name, value in contributions.items()
-        }
 
 
 # ---------------------------------------------------------------- builders
@@ -168,13 +149,13 @@ def make_feed(
 
 def build_reactor(
     database_path: Path | str = DEFAULT_DATABASE_PATH,
-) -> BalanceRecordingReactor:
+) -> ContinuousReactor:
     """Build R01 with both feeds attached as separate inlets."""
     database_path = Path(database_path)
     species_names = database_species(database_path)
     solvent_name = database_solvent(species_names)
 
-    reactor = BalanceRecordingReactor(
+    reactor = ContinuousReactor(
         integrator=ScipyBackend(),
         h_conv=REACTOR_H_CONV,
         diam=REACTOR_DIAMETER,
@@ -201,7 +182,7 @@ def build_reactor(
     )
     reactor.Inlet = [
         make_feed(database_path, FEED_A, FLOW_A, species_names, solvent_name),
-        make_feed(database_path, FEED_B, FLOW_B, species_names, solvent_name),
+        make_feed(database_path, FEED_C, FLOW_C, species_names, solvent_name),
     ]
     return reactor
 
@@ -217,14 +198,14 @@ def run_reactor(
 
 
 # ---------------------------------------------------------------- balances
-def replay_balances(reactor: BalanceRecordingReactor) -> SimpleNamespace:
+def replay_balances(reactor: ContinuousReactor) -> SimpleNamespace:
     """Re-evaluate PharmaPy's balances at every saved time point.
 
     Mirrors ``MultiPhaseVessel.find_output_states_from_replay``: an
     independent copy of the vessel is set to each accepted solver state and
     asked for its balances through the same methods the integrator calls,
     including the positivity limiter. Nothing here re-derives a balance; the
-    terms are read out of PharmaPy's contribution buffer and energy dict.
+    terms are read out of PharmaPy's contribution buffer.
 
     Returns
     -------
@@ -250,16 +231,40 @@ def replay_balances(reactor: BalanceRecordingReactor) -> SimpleNamespace:
 
         rates, buffer = pseudo.material_balances(
             time, completed, limiter_dt=pseudo.positivity_horizon)
-        pseudo.energy_balances(time, completed, buffer)
 
-        terms = buffer.contributions
+        contributions = {
+            "inlet": 0.0,
+            "intraphase": 0.0,
+            "crossphase": 0.0,
+            "outlet": 0.0,
+            "utility": 0.0,
+            "mixing": 0.0,
+        }
+        pseudo.add_inlet_energy_terms(
+            contributions, buffer.aux[buffer.INLET], time, completed
+        )
+        pseudo.add_intraphase_energy_terms(
+            contributions, buffer.aux[buffer.INTRAPHASE], time, completed
+        )
+        pseudo.add_crossphase_energy_terms(
+            contributions, buffer.aux[buffer.CROSSPHASE], time, completed
+        )
+        pseudo.add_outlet_energy_terms(
+            contributions, buffer.aux[buffer.OUTLET], time, completed
+        )
+        pseudo.add_utility_energy_terms(contributions, time, completed)
+        pseudo.add_mixing_energy_terms(contributions, time, completed)
+
         feeds.append([np.array(transfer.species_flow, dtype=float)
                       for transfer in buffer.aux[buffer.INLET]])
-        inlet.append(terms[buffer.INLET].copy())
-        generation.append(terms[buffer.INTRAPHASE].copy())
-        outlet.append(-terms[buffer.OUTLET])
+        inlet.append(np.asarray(buffer.contributions[buffer.INLET], dtype=float)
+                     .copy())
+        generation.append(np.asarray(buffer.contributions[buffer.INTRAPHASE],
+                                    dtype=float).copy())
+        outlet.append(-np.asarray(buffer.contributions[buffer.OUTLET],
+                                 dtype=float))
         accumulation.append(np.array(rates, dtype=float))
-        heat.append(pseudo.energy_contributions)
+        heat.append({name: float(value) for name, value in contributions.items()})
 
     return SimpleNamespace(
         time=np.asarray(result.time),
@@ -375,7 +380,7 @@ def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
             return "solvent only"
         return ", ".join(f"{k} {v:g}" for k, v in solutes.items())
 
-    tau = REACTOR_VOLUME / (FLOW_A + FLOW_B)
+    tau = REACTOR_VOLUME / (FLOW_A + FLOW_C)
     area = 4 * REACTOR_VOLUME / REACTOR_DIAMETER
     u_ht = 1.0 / (1.0 / REACTOR_H_CONV + 1.0 / COOLANT_H_CONV)
     final = reactor.result
@@ -392,7 +397,7 @@ def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
         ("Initial conditions", "Charge [mol/L]",
          composition(INITIAL_REACTOR)),
         ("Feeds", "Feed A", f"{FLOW_A:g} m³/s, {composition(FEED_A)} mol/L"),
-        ("Feeds", "Feed B", f"{FLOW_B:g} m³/s, {composition(FEED_B)} mol/L"),
+        ("Feeds", "Feed C", f"{FLOW_C:g} m³/s, {composition(FEED_C)} mol/L"),
         ("Feeds", "Feed temperature", f"{FEED_TEMPERATURE:g} K"),
         ("Feeds", "Residence time", f"{tau:g} s ({tau / 60:.1f} min)"),
         ("Kinetics", "Reactions", "; ".join(REACTIONS)),
@@ -460,7 +465,7 @@ def plot_mass_balance(reactor: ContinuousReactor,
     generation = balances.generation[-1] * to_g
     outlet = balances.outlet[-1] * to_g
     accumulation = balances.accumulation[-1] * to_g
-    feed_labels = ["Feed A", "Feed B"] + [
+    feed_labels = ["Feed A", "Feed C"] + [
         f"Feed {i + 1}" for i in range(2, len(feeds))]
 
     def cell(value):
@@ -518,7 +523,6 @@ HEAT_TERM_LABELS = {
     "outlet": "Outlet",
     "crossphase": "Phase transfer",
     "mixing": "Mixing",
-    "shaftwork": "Shaft work",
 }
 
 
@@ -554,7 +558,7 @@ def plot_heat_sources(balances: SimpleNamespace):
     return fig
 
 
-def save_figures(reactor: BalanceRecordingReactor,
+def save_figures(reactor: ContinuousReactor,
                  out_dir: Path = RESULTS_DIR,
                  balances: SimpleNamespace | None = None):
     """Draw all figures, save them as PNGs and return them by name."""
