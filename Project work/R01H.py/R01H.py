@@ -21,7 +21,7 @@ rate constants stay in L/mol/s.
 The reactor is jacketed rather than isothermal so that temperature is a solved
 state: the heat of reaction raises it, the jacket and the feeds pull it back,
 and the Arrhenius term feeds it back into the rate. That is what makes the
-w_A-vs-T phase portrait meaningful.
+w_i-vs-T phase portrait meaningful.
 
 Run it with::
 
@@ -30,7 +30,7 @@ Run it with::
 
 Figures are written to ``results/`` next to this file:
 
-    R01_profiles.png   w_A vs time, T vs time, w_A vs T
+    R01_profiles.png   w_i vs time, T vs time, w_i vs T (reacting species)
     R01_native.png     the same run through PharmaPy.Plotting.plot_function
     R01_settings.png   the settings and initial conditions used for the run
     R01_mass_balance.png  inlet vs outlet species balance at the final time
@@ -69,19 +69,19 @@ DEFAULT_DATABASE_PATH = HERE / "compound_databaseActual.json"
 RESULTS_DIR = HERE / "results"
 
 # ---------------------------------------------------------------- settings
-REACTIONS = ["A + B --> C"]
+REACTIONS = ["A + C --> F"]
 RATE_CONSTANTS = np.array([1.0e-2])  # L/mol/s, at KINETICS_TEMP_REF
 ACTIVATION_ENERGIES = np.array([4.0e4])  # J/mol
 KINETICS_TEMP_REF = 313.15  # K, rate constants above are quoted here
 HEAT_OF_REACTION = -5.0e4  # J/mol, negative = exothermic
 
-# Compositions are solute mass fractions; the solvent is the remainder.
-# B is the solvent here, so it never needs listing: FEED_B is pure B.
+# Compositions are solute mass fractions; the solvent (B) is the remainder,
+# so it never needs listing.
 FLOW_A = 1.0e-2  # kg/s
 FLOW_B = 1.0e-2  # kg/s
 FEED_TEMPERATURE = 313.15  # K
 FEED_A = {"A": 0.0207}  # mass fraction, ~0.33 mol/L of A
-FEED_B = {}  # mass fraction, pure solvent
+FEED_B = {"C": 0.0459}  # mass fraction, ~0.33 mol/L of C
 
 REACTOR_MASS = 10.0  # kg, initial charge (~0.01 m**3 of water)
 REACTOR_DIAMETER = 0.2  # m, jacket area = 4 V / D
@@ -315,29 +315,45 @@ def mass_fractions(reactor: ContinuousReactor) -> np.ndarray:
     return mass_j / mass_j.sum(axis=1, keepdims=True)
 
 
-def species_mass_frac(reactor: ContinuousReactor, name: str) -> np.ndarray:
-    """Liquid-phase mass-fraction history of one species."""
-    index = list(reactor.name_species).index(name)
-    return mass_fractions(reactor)[:, index]
+def reacting_species(reactor: ContinuousReactor) -> list[str]:
+    """Species named in REACTIONS, in order of appearance, minus the solvent."""
+    solvent_name = database_solvent(tuple(reactor.name_species))
+    names = []
+    for reaction in REACTIONS:
+        for side in reaction.split("-->"):
+            for term in side.split("+"):
+                name = term.strip().split()[-1]
+                if name not in names and name != solvent_name:
+                    names.append(name)
+    return names
 
 
 def plot_profiles(reactor: ContinuousReactor):
-    """w_A vs time, T vs time and the w_A-T phase portrait, side by side."""
+    """w_i vs time, T vs time and the w_i-T phase portrait, side by side.
+
+    i runs over the species in REACTIONS (the solvent left out).
+    """
     import matplotlib.pyplot as plt
 
     result = reactor.result
     time_min = np.asarray(result.time) / 60.0
-    frac_a = species_mass_frac(reactor, "A")
+    fractions = mass_fractions(reactor)
+    index = {name: j for j, name in enumerate(reactor.name_species)}
+    species = reacting_species(reactor)
+    colors = dict(zip(species, SERIES_COLORS * len(species)))
     temp = np.ravel(result.global_temp)
 
     fig, (ax_ca, ax_t, ax_phase) = plt.subplots(1, 3, figsize=(15, 4.5))
 
-    ax_ca.plot(time_min, frac_a, color=SERIES_COLORS[0], lw=2)
+    for name in species:
+        ax_ca.plot(time_min, fractions[:, index[name]], color=colors[name],
+                   lw=2, label=name)
     ax_ca.set_xlabel("Time [min]")
-    ax_ca.set_ylabel("$w_A$ [kg/kg]")
-    ax_ca.set_title("Mass fraction of A")
+    ax_ca.set_ylabel("$w_i$ [kg/kg]")
+    ax_ca.set_title("Mass fraction of each species")
+    ax_ca.legend(title="i", frameon=False)
 
-    ax_t.plot(time_min, temp, color=SERIES_COLORS[1], lw=2)
+    ax_t.plot(time_min, temp, color=TEXT_PRIMARY, lw=2)
     ax_t.axhline(COOLANT_TEMPERATURE, color=TEXT_MUTED, lw=1, ls="--")
     ax_t.annotate("coolant inlet", (time_min[-1], COOLANT_TEMPERATURE),
                   xytext=(0, 4), textcoords="offset points", ha="right",
@@ -346,19 +362,18 @@ def plot_profiles(reactor: ContinuousReactor):
     ax_t.set_ylabel("$T$ [K]")
     ax_t.set_title("Reactor temperature")
 
-    ax_phase.plot(frac_a, temp, color=SERIES_COLORS[2], lw=2)
-    ax_phase.plot(frac_a[0], temp[0], "o", ms=8, color=SERIES_COLORS[2],
-                  mec="white", mew=2)
-    ax_phase.plot(frac_a[-1], temp[-1], "s", ms=8, color=SERIES_COLORS[2],
-                  mec="white", mew=2)
-    ax_phase.annotate("start", (frac_a[0], temp[0]), xytext=(8, 0),
-                      textcoords="offset points", va="center", fontsize=9)
-    ax_phase.annotate(f"t = {time_min[-1]:.0f} min", (frac_a[-1], temp[-1]),
-                      xytext=(-8, 0), textcoords="offset points",
-                      ha="right", va="center", fontsize=9)
-    ax_phase.set_xlabel("$w_A$ [kg/kg]")
+    for name in species:
+        frac = fractions[:, index[name]]
+        ax_phase.plot(frac, temp, color=colors[name], lw=2, label=name)
+        ax_phase.plot(frac[0], temp[0], "o", ms=7, color=colors[name],
+                      mec="white", mew=1.5)
+        ax_phase.plot(frac[-1], temp[-1], "s", ms=7, color=colors[name],
+                      mec="white", mew=1.5)
+    ax_phase.set_xlabel("$w_i$ [kg/kg]")
     ax_phase.set_ylabel("$T$ [K]")
-    ax_phase.set_title("$w_A$ vs $T$")
+    ax_phase.set_title(f"$w_i$ vs $T$  (\u25cf t = 0, \u25a0 t = "
+                       f"{time_min[-1]:.0f} min)")
+    ax_phase.legend(title="i", frameon=False)
 
     for axis in (ax_ca, ax_t, ax_phase):
         axis.grid(True, color="#e5e4e0", lw=0.8)
@@ -504,8 +519,9 @@ def plot_mass_balance(reactor: ContinuousReactor,
     def cell(value):
         return "0" if abs(value) < 5e-7 else f"{value:.4f}"
 
-    columns = (["Species"] + [f"{name} in" for name in feed_labels[:len(feeds)]]
-               + ["Generated", "Out", "Accumulated"])
+    columns = (["Species"]
+               + [f"{name} in [g/s]" for name in feed_labels[:len(feeds)]]
+               + ["Generated [g/s]", "Out [g/s]", "Accumulated [g/s]"])
     rows = []
     for j, name in enumerate(reactor.name_species):
         rows.append([name] + [cell(f[j]) for f in feeds]
