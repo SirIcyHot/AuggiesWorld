@@ -70,24 +70,24 @@ RESULTS_DIR = HERE / "results"
 
 # ---------------------------------------------------------------- settings
 REACTIONS = ["2 A + C --> F"]
-RATE_CONSTANTS = np.array([1.0e-2])  # L/mol/s, at KINETICS_TEMP_REF
-ACTIVATION_ENERGIES = np.array([4.0e4])  # J/mol
+RATE_CONSTANTS = np.array([0.0023 * 250.0])
+ACTIVATION_ENERGIES = np.array([0.0])  # J/mol
 PARAMS_F_DUMMY = np.array([[1.0, 1.0]])
 KINETICS_TEMP_REF = 25+273.15 # K, rate constants above are quoted here
 HEAT_OF_REACTION = -3.0e3  # J/mol, negative = exothermic
 
 # Compositions are solute mass fractions; the solvent (B) is the remainder,
 # so it never needs listing.
-FLOW_A = 1.0e-2  # kg/s
-FLOW_B = 1.0e-2  # kg/s
-FEED_TEMPERATURE = 313.15  # K
-FEED_A = {"A": 0.0207}  # mass fraction, ~0.33 mol/L of A
-FEED_B = {"C": 0.0459}  # mass fraction, ~0.33 mol/L of C
+FLOW_A = 0.001028  # kg/s
+FLOW_B = 0.000207  # kg/s
+FEED_TEMPERATURE = 20+273.15  # K
+FEED_A = {"A": 0.213}  # mass fraction, ~0.33 mol/L of A
+FEED_B = {"C": 0.939}  # mass fraction, ~0.33 mol/L of C
 
-REACTOR_VOLUME = 0.01  # m**3, initial liquid volume
+REACTOR_VOLUME = 0.001  # m**3, initial liquid volume
 REACTOR_DIAMETER = 0.2  # m, jacket area = 4 V / D
 REACTOR_H_CONV = 1000.0  # W/m**2/K, vessel side
-INITIAL_TEMPERATURE = 313.15  # K
+INITIAL_TEMPERATURE = 10+273.15  # K
 INITIAL_REACTOR = {}  # mass fraction, pure solvent
 
 COOLANT_MASS_FLOW = 0.1  # kg/s
@@ -201,33 +201,21 @@ def make_feed(
 
 
 def build_kinetics(database_path: Path) -> RxnKinetics:
-    """Create the configured kinetics model across PharmaPy versions.
+    """Create the custom kinetics using PharmaPy's initialized model state.
 
-    Some PharmaPy releases reference ``params_f`` before assigning it when a
-    custom kinetic model is supplied. The built-in model initializes the same
-    parameter state correctly, so its callbacks can be replaced after
-    construction for those releases.
+    Constructing with the built-in model avoids an older PharmaPy bug that
+    references ``params_f`` before assigning it for custom models. The custom
+    rate callback is installed immediately after construction.
     """
-    kinetics_kwargs = dict(
+    kinetics = RxnKinetics(
         path=str(database_path),
         rxn_list=REACTIONS,
         k_params=RATE_CONSTANTS,
         ea_params=ACTIVATION_ENERGIES,
         params_f=PARAMS_F_DUMMY,
-        df_dstates=custom_rate_model_derivative,
         temp_ref=KINETICS_TEMP_REF,
         delta_hrxn=HEAT_OF_REACTION,
     )
-    try:
-        return RxnKinetics(
-            **kinetics_kwargs,
-            kinetic_model=custom_rate_model,
-        )
-    except UnboundLocalError as error:
-        if "params_f" not in str(error):
-            raise
-
-    kinetics = RxnKinetics(**kinetics_kwargs)
     kinetics.kinetic_model = custom_rate_model
     kinetics.df_dstates = custom_rate_model_derivative
     return kinetics
