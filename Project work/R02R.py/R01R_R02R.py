@@ -10,9 +10,14 @@ The flowsheet is::
 ``R01R`` is the upstream reactor. It takes R02R's two feeds (``FEED_A`` and
 ``FEED_B`` from ``R02R.py``, unchanged) and no others. ``R02R`` gets no fresh
 feed at all: its only inlet is R01R's outlet, handed over by
-``PharmaPy.SimExec.SimulationExec`` as R01R's solved outlet trajectory. Both
-reactors are the R02R vessel (same charge, jacket, coolant flow and three
-parallel reactions); only the temperature they are held at differs.
+``PharmaPy.SimExec.SimulationExec`` as R01R's solved outlet trajectory.
+
+Both vessels are built by ``R02R.build_reactor``, so they share its
+kinetics, feeds, jacket and coolant flow. Each differs only in the
+temperature it is held at (``SETPOINTS``) and its initial charge
+(``MASSES``). The level loop holds the starting volume, so the charge sets
+the residence time: R01R holds half of R02R's mass and so has half its
+residence time (250 s against 500 s).
 
 Feedback control
 ----------------
@@ -46,8 +51,9 @@ Figures are written to ``results/`` next to this file:
                                 accumulated at the final time
     R01R_R02R_settings.png      settings and final values for the run
 
-Settings shared with R02R (kinetics, feeds, vessel, coolant flow) are read
-from ``R02R.py`` so the two scripts cannot drift apart.
+Everything not listed under settings below (kinetics, feeds, vessel
+geometry, coolant flow, the balance replay and plotting helpers) comes from
+``R02R.py``, so the two scripts cannot drift apart.
 """
 
 from __future__ import annotations
@@ -60,12 +66,8 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from PharmaPy.IntegratorBackends import ScipyBackend
-from PharmaPy.Kinetics import RxnKinetics
-from PharmaPy.Phases_Refactored import LiquidPhase
 from PharmaPy.ProcessControl_Refactored import DefaultContinuousVesselVolume
 from PharmaPy.SimExec import SimulationExec
-from PharmaPy.Utilities import CoolingWater
 
 import R02R as base
 
@@ -79,6 +81,14 @@ FLOWSHEET = "R01R --> R02R"
 SETPOINTS = {
     "R01R": 303.15,  # K, 30 C
     "R02R": 333.15,  # K, 60 C
+}
+# Initial charge of each vessel. The level loop holds the starting volume,
+# so this sets the residence time, mass / (FLOW_A + FLOW_B): R01R gets half
+# of R02R's charge (250 s against 500 s). The jacket area scales with the
+# volume (A = 4 V / D), so R01R also has half R02R's U A.
+MASSES = {
+    "R01R": 0.5 * base.REACTOR_MASS,  # kg
+    "R02R": base.REACTOR_MASS,  # kg
 }
 CONTROLLER_GAIN = 100.0  # K of jacket inlet per K of reactor error
 # The coolant is liquid water, so its inlet temperature is kept between
@@ -124,47 +134,27 @@ class JacketTemperatureController(DefaultContinuousVesselVolume):
 
 
 # ---------------------------------------------------------------- builders
-def build_reactor(name: str, database_path: Path,
-                  inlet=None) -> base.BalanceRecordingReactor:
-    """One R02R-type vessel held at ``SETPOINTS[name]``.
+def build_reactor(name: str, database_path: Path) -> base.BalanceRecordingReactor:
+    """One vessel built by ``R02R.build_reactor``, held at ``SETPOINTS[name]``
+    with an initial charge of ``MASSES[name]``.
 
-    ``inlet`` is left unset for a unit fed by the flowsheet.
+    Only the first unit gets R02R's feeds; the rest are fed by the flowsheet.
     """
-    species_names = base.database_species(database_path)
-    solvent_name = base.database_solvent(species_names)
     setpoint = SETPOINTS[name]
-
-    reactor = base.BalanceRecordingReactor(
-        integrator=ScipyBackend(),
-        h_conv=base.REACTOR_H_CONV,
-        diam=base.REACTOR_DIAMETER,
+    return base.build_reactor(
+        database_path,
+        mass=MASSES[name],
+        temperature=setpoint,
+        coolant_temperature=setpoint,
         controller=JacketTemperatureController(setpoint),
+        with_feeds=name == next(iter(SETPOINTS)),
     )
-    reactor.Phases = LiquidPhase(
-        str(database_path),
-        temp=setpoint,
-        mass_frac=base.named_mass_fraction(base.INITIAL_REACTOR,
-                                           species_names, solvent_name),
-        mass=base.REACTOR_MASS,
-        name_solv=solvent_name,
-    )
-    reactor.RxnKinetics = RxnKinetics(
-        path=str(database_path),
-        rxn_list=base.REACTIONS,
-        k_params=base.RATE_CONSTANTS,
-        ea_params=base.ACTIVATION_ENERGIES,
-        params_f=base.reaction_order_matrix(species_names),
-        temp_ref=base.KINETICS_TEMP_REF,
-        delta_hrxn=base.HEAT_OF_REACTION,
-    )
-    reactor.Utility = CoolingWater(
-        mass_flow=base.COOLANT_MASS_FLOW,
-        temp_in=setpoint,
-        h_conv=base.COOLANT_H_CONV,
-    )
-    if inlet is not None:
-        reactor.Inlet = inlet
-    return reactor
+
+
+def residence_time(name: str) -> float:
+    """Nominal residence time [s]: held mass over R02R's total feed flow,
+    which passes through every vessel in turn."""
+    return MASSES[name] / (base.FLOW_A + base.FLOW_B)
 
 
 def build_flowsheet(
@@ -172,17 +162,9 @@ def build_flowsheet(
 ) -> SimulationExec:
     """R01R takes R02R's two feeds; R02R takes only R01R's outlet."""
     database_path = Path(database_path)
-    species_names = base.database_species(database_path)
-    solvent_name = base.database_solvent(species_names)
-
     flowsheet = SimulationExec(str(database_path), flowsheet=FLOWSHEET)
-    flowsheet.R01R = build_reactor("R01R", database_path, inlet=[
-        base.make_feed(database_path, base.FEED_A, base.FLOW_A,
-                       species_names, solvent_name),
-        base.make_feed(database_path, base.FEED_B, base.FLOW_B,
-                       species_names, solvent_name),
-    ])
-    flowsheet.R02R = build_reactor("R02R", database_path)
+    for name in SETPOINTS:
+        setattr(flowsheet, name, build_reactor(name, database_path))
     return flowsheet
 
 
@@ -341,7 +323,6 @@ def settings_rows(units: dict) -> list[tuple[str, str, str]]:
         return ", ".join(f"{k} {v:g}" for k, v in named.items()) \
             + " (mass frac.)"
 
-    tau = base.REACTOR_MASS / (base.FLOW_A + base.FLOW_B)
     rows = [
         ("Flowsheet", "Topology", FLOWSHEET),
         ("Feeds (R01R only)", "Feed A",
@@ -350,9 +331,6 @@ def settings_rows(units: dict) -> list[tuple[str, str, str]]:
          f"{base.FLOW_B:g} kg/s, {composition(base.FEED_B)}"),
         ("Feeds (R01R only)", "Feed temperature",
          f"{base.FEED_TEMPERATURE:g} K"),
-        ("Vessels (each)", "Initial charge",
-         f"{base.REACTOR_MASS:g} kg solvent, at its setpoint"),
-        ("Vessels (each)", "Residence time", f"{tau:g} s"),
         ("Control", "Level", "DefaultContinuousVesselVolume (outlet flow)"),
         ("Control", "Temperature",
          f"P on jacket inlet T, Kc {CONTROLLER_GAIN:g} K/K, limits "
@@ -367,6 +345,9 @@ def settings_rows(units: dict) -> list[tuple[str, str, str]]:
                                       base.mass_fractions(reactor)[-1])
                  if s != solvent and w > 1e-9}
         rows += [
+            (name, "Initial charge / residence time",
+             f"{MASSES[name]:g} kg solvent at its setpoint / "
+             f"{residence_time(name):g} s"),
             (name, "Setpoint", f"{temps.setpoint:g} K "
                                f"({temps.setpoint - 273.15:g} °C)"),
             (name, "Final T / jacket inlet T",
@@ -434,7 +415,9 @@ if __name__ == "__main__":
     for name, reactor in units.items():
         temps = temperatures(reactor)
         bal = balances[name]
-        print(f"\n{name}  (setpoint {temps.setpoint:g} K)")
+        print(f"\n{name}  (setpoint {temps.setpoint:g} K, charge "
+              f"{MASSES[name]:g} kg, residence time "
+              f"{residence_time(name):g} s)")
         print(f"  Final T {temps.reactor[-1]:.3f} K, jacket inlet "
               f"{temps.jacket_in[-1]:.3f} K, offset "
               f"{temps.reactor[-1] - temps.setpoint:+.3f} K")

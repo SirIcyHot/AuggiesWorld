@@ -239,8 +239,20 @@ def make_feed(
 
 def build_reactor(
     database_path: Path | str = DEFAULT_DATABASE_PATH,
+    *,
+    mass: float = REACTOR_MASS,
+    temperature: float = INITIAL_TEMPERATURE,
+    coolant_temperature: float = COOLANT_TEMPERATURE,
+    controller=None,
+    with_feeds: bool = True,
 ) -> BalanceRecordingReactor:
-    """Build R02R with both feeds attached as separate inlets."""
+    """Build R02R with both feeds attached as separate inlets.
+
+    The keyword arguments let a flowsheet reuse this vessel with a different
+    initial charge, temperature or controller; the defaults are R02R's own
+    settings. ``with_feeds=False`` leaves Inlet unset, for a vessel fed by
+    an upstream unit.
+    """
     database_path = Path(database_path)
     species_names = database_species(database_path)
     solvent_name = database_solvent(species_names)
@@ -249,13 +261,14 @@ def build_reactor(
         integrator=ScipyBackend(),
         h_conv=REACTOR_H_CONV,
         diam=REACTOR_DIAMETER,
+        controller=controller,
     )
     reactor.Phases = LiquidPhase(
         str(database_path),
-        temp=INITIAL_TEMPERATURE,
+        temp=temperature,
         mass_frac=named_mass_fraction(INITIAL_REACTOR, species_names,
                                       solvent_name),
-        mass=REACTOR_MASS,
+        mass=mass,
         name_solv=solvent_name,
     )
     reactor.RxnKinetics = RxnKinetics(
@@ -269,13 +282,16 @@ def build_reactor(
     )
     reactor.Utility = CoolingWater(
         mass_flow=COOLANT_MASS_FLOW,
-        temp_in=COOLANT_TEMPERATURE,
+        temp_in=coolant_temperature,
         h_conv=COOLANT_H_CONV,
     )
-    reactor.Inlet = [
-        make_feed(database_path, FEED_A, FLOW_A, species_names, solvent_name),
-        make_feed(database_path, FEED_B, FLOW_B, species_names, solvent_name),
-    ]
+    if with_feeds:
+        reactor.Inlet = [
+            make_feed(database_path, FEED_A, FLOW_A, species_names,
+                      solvent_name),
+            make_feed(database_path, FEED_B, FLOW_B, species_names,
+                      solvent_name),
+        ]
     return reactor
 
 
