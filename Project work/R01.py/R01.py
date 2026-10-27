@@ -34,7 +34,8 @@ re-deriving them: the solved trajectory is replayed through the vessel's
 ``material_balances`` and ``energy_balances`` (the same calls the integrator
 makes), and each term is recorded as PharmaPy computed it.
 
-The compound database defaults to ``../compound_database.json``; set
+The compound database defaults to ``compound_database.json`` next to this
+script; set
 ``PHARMAPY_DATABASE`` to use another one.
 """
 
@@ -58,7 +59,7 @@ from PharmaPy.Utilities import CoolingWater
 
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_DATABASE_PATH = HERE.parent / "compound_database.json"
+DEFAULT_DATABASE_PATH = HERE / "compound_database.json"
 RESULTS_DIR = HERE / "results"
 
 # ---------------------------------------------------------------- settings

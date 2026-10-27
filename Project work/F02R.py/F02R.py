@@ -54,16 +54,23 @@ from scipy.optimize import brentq
 from PharmaPy.Mechanisms import OneDFVMMechanism
 from PharmaPy.Streams_Refactored import LiquidStream
 
-from continuous_filter import ContinuousFilter, SlurryFlow, flow_from_vessel
+# ---------------------------------------------------------------- paths
+# Built from this file's location, so they work whichever folder Python is
+# started from. Update them here if any of these files move.
+HERE = Path(__file__).resolve().parent          # Project work/F02R.py
+ROOT = HERE.parents[1]                          # AuggiesWorld
 
-HERE = Path(__file__).resolve().parent
-R02R_DIR = HERE.parent / "Project work" / "R02R.py"
+R02R_DIR = ROOT / "Project work" / "R02R.py"
+DB_PATH = R02R_DIR / "compound_databaseActual.json"
+FILTER_DIR = ROOT / "CustomUnitOps"
 
-# R02R lives in a folder that is not a package, so it is loaded by path.
-sys.path.insert(0, str(R02R_DIR))
+sys.path[:0] = [str(FILTER_DIR), str(R02R_DIR)]
+
+from continuous_filter import (  # noqa: E402
+    ContinuousFilter, SlurryFlow, flow_from_vessel)
 import R02R  # noqa: E402
 
-DEFAULT_DATABASE_PATH = R02R.DEFAULT_DATABASE_PATH
+DEFAULT_DATABASE_PATH = DB_PATH
 
 # ---------------------------------------------------------------- settings
 CRYSTAL_SPECIES = ("D", "E", "J")
