@@ -309,12 +309,6 @@ def test_crystallizer_resolves_the_cake_liquid_the_filter_sent():
                                filt.cake_flow.liquid_mass_j, rtol=1e-9)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    'PharmaPy bug: PopulationBalanceMechanism.get_inlet_contributions '
-    'divides the slurry feed flow by the SOLID phase volume instead of the '
-    'slurry volume. An empty crystallizer then ignores a crystal feed and a '
-    'seeded one overstates it by V_slurry / V_crystals. Strict, so this '
-    'starts failing (and should be un-marked) once PharmaPy is fixed.'))
 @pytest.mark.parametrize('seed', [0.0, 1e9])
 def test_crystallizer_balance_receives_the_cake_crystals(seed):
     filt = ContinuousFilter(solids_loss=0.02, cake_moisture=0.3)

@@ -24,9 +24,10 @@ The crystals get a Gaussian size distribution on CR01H's size grid. The
 split conserves mass, so the slurry entering F01 carries R01H's outlet mass
 flow exactly.
 
-``F01`` is ``ContinuousFilter`` from ``continuous_filter.py``. Two settings
-govern it: ``SOLIDS_LOSS`` (fraction of crystals passing into the filtrate)
-and ``CAKE_MOISTURE`` (liquid held in the cake, as LOD by default).
+``F01`` is ``ContinuousFilter`` from ``CustomUnitOps/continuous_filter.py``.
+Two settings govern it: ``SOLIDS_LOSS`` (fraction of crystals passing into
+the filtrate) and ``CAKE_MOISTURE`` (liquid held in the cake, as LOD by
+default).
 
 Run it with::
 
@@ -50,28 +51,24 @@ from scipy.optimize import brentq
 from PharmaPy.Mechanisms import OneDFVMMechanism
 from PharmaPy.Streams_Refactored import LiquidStream
 
-from continuous_filter import ContinuousFilter, SlurryFlow, flow_from_vessel
+# ---------------------------------------------------------------- paths
+# Built from this file's location, so they work whichever folder Python is
+# started from. Update them here if any of these files move.
+HERE = Path(__file__).resolve().parent          # Project work/F01H.py
+ROOT = HERE.parents[1]                          # AuggiesWorld
 
-HERE = Path(__file__).resolve().parent
-R01H_DIR = HERE.parent / "Project work" / "R01H.py"
+R01H_DIR = ROOT / "Project work" / "R01H.py"
+DB_PATH = R01H_DIR / "compound_databaseActual.json"
+FILTER_DIR = ROOT / "CustomUnitOps"
 
-# R01H and CR01H live in a folder that is not a package, and CR01H's file
-# name contains a space, so both are loaded by path.
-sys.path.insert(0, str(R01H_DIR))
+sys.path[:0] = [str(FILTER_DIR), str(R01H_DIR)]
+
+from continuous_filter import (  # noqa: E402
+    ContinuousFilter, SlurryFlow, flow_from_vessel)
 import R01H  # noqa: E402
+import CR01H  # noqa: E402
 
-
-def _load_cr01h():
-    spec = importlib.util.spec_from_file_location("CR01H",
-                                                  R01H_DIR / "CR01H .py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-CR01H = _load_cr01h()
-
-DEFAULT_DATABASE_PATH = R01H.DEFAULT_DATABASE_PATH
+DEFAULT_DATABASE_PATH = DB_PATH
 
 # ---------------------------------------------------------------- settings
 CRYSTAL_SPECIES = "F"
