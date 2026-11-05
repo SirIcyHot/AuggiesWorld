@@ -590,10 +590,12 @@ def export_concentration_profiles(
         out_path = RESULTS_DIR / f"SBR_concentrations{figure_suffix()}.xlsx"
 
     time = np.asarray(reactor.result.time, dtype=float)
+    volume = np.asarray(reactor.result.vessel_vol, dtype=float).ravel()
     concentrations = concentration_history(reactor)
     profiles = {
         "Time [s]": time,
         "Time [min]": time / 60.0,
+        "Volume [mL]": volume * 1.0e6,
         **{f"{name} [mol/L]": values
            for name, values in concentrations.items()},
     }
