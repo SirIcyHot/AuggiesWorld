@@ -1,11 +1,11 @@
-"""Isothermal temperature sweep of R02R: the C-starvation case study.
+"""Isothermal temperature sweep of R02R: the F-starvation case study.
 
 Each point solves R02R with the vessel held isothermal at the sweep
 temperature (``isothermal=True``, so there is no energy balance and no
 jacket). Feeds, kinetics and charge are taken unchanged from ``R02R.py``.
 
-The case study: the three reactions all consume C, but J has the highest
-order in it (0.5, against 0.21 for E and 0.29 for D). C is fed at about an
+The case study: the three reactions all consume F, but J has the highest
+order in it (0.5, against 0.21 for E and 0.29 for D). F is fed at about an
 eighth of A and a tenth of G and is used up almost completely, so J is
 starved of it and E takes most of the product in the mid range, although
 the rate constants alone favour J. J only leads below about 30 C, and D, the
@@ -15,8 +15,8 @@ Selectivity is molar, from the outlet at the end of the run::
 
     S_i = n_i / (n_D + n_E + n_J),   i in {D, E, J}
 
-C conversion is ``1 - w_C,out / w_C,in`` on the combined feed, which at
-steady state is the fraction of the fed C that reacted.
+F conversion is ``1 - w_F,out / w_F,in`` on the combined feed, which at
+steady state is the fraction of the fed F that reacted.
 
 Run it with::
 
@@ -44,7 +44,7 @@ import R02R
 
 SWEEP_TEMPS_C = np.arange(40.0, 80.0 + 1e-9, 5.0)  # degC
 PRODUCTS = ("D", "E", "J")
-LIMITING = "C"
+LIMITING = "F"
 
 
 def build_isothermal_reactor(temp: float, database_path: Path):
@@ -95,7 +95,7 @@ def selectivity(reactor, mw: dict[str, float]) -> np.ndarray:
 
 
 def run_sweep(database_path: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Selectivity (temperature, product) and C conversion (temperature)."""
+    """Selectivity (temperature, product) and F conversion (temperature)."""
     database = ParseDatabase(str(database_path), to_arrays=False)
     mw = dict(zip(database["name_species"], database["mw"]))
     c_index = list(database["name_species"]).index(LIMITING)
@@ -115,7 +115,7 @@ def run_sweep(database_path: Path) -> tuple[np.ndarray, np.ndarray]:
 
 
 def plot_selectivity(sel: np.ndarray, conversion: np.ndarray):
-    """Selectivities vs temperature, with C conversion dashed."""
+    """Selectivities vs temperature, with F conversion dashed."""
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -128,7 +128,7 @@ def plot_selectivity(sel: np.ndarray, conversion: np.ndarray):
     ax.set_ylabel("Selectivity [mol/mol products], conversion [-]")
     ax.set_ylim(0, 1.05)
     ax.set_title("R02R isothermal sweep: steady-state selectivity, "
-                 "C-limited feed")
+                 "F-limited feed")
     ax.legend(frameon=False, loc="center right")
     ax.grid(True, color="#e5e4e0", lw=0.8)
     ax.spines[["top", "right"]].set_visible(False)

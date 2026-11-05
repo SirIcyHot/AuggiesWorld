@@ -25,8 +25,9 @@ Solubility of each species i (mol/L), with L as the dissolving solvent::
 
     c_sat,i = S0_i * exp(K_L * [L])
 
-S0_i is the solubility in L-free liquid, the same as D01R's (R02R's
-H-based liquid). K_L > 0, so L raises the solubility. It is set so that at
+S0_i is the solubility in L-free liquid (R02R's H-based liquid); for now
+D, E and J share one value, D01R's S0 for J. K_L > 0, so L raises the
+solubility. It was set, for an earlier F01R cake, so that at
 D02R's steady [L] (~11 mol/L) the solubility sits just below what full
 dissolution of the cake crystals would give: D, E and J dissolve almost
 completely. Raise K_L or L_FLOW to dissolve the rest.
@@ -112,12 +113,13 @@ INITIAL_COMPOSITION = {}  # solute mass fractions; solvent is the remainder
 DISSOLVER_TEMPERATURE = None  # K
 DISSOLVER_DIAMETER = 0.15  # m
 
-# Solubility c_sat = S0 exp(K_L [L]) [mol/L]. S0 is D01R's (R02R's liquid,
-# no L). L/mol: each 1 mol/L of L multiplies every solubility by
-# exp(K_L) = 1.18; at the ~11.1 mol/L of L the tank settles at,
-# exp(K_L * 11.1) = 6.3, just below what dissolving every cake crystal
-# would give, so ~98.6 % dissolves. Sensitive: 0.164 gives ~96.8 %.
-SOLUBILITY_S0 = {"D": 0.0284, "E": 0.01505, "J": 0.0886}  # mol/L
+# Solubility c_sat = S0 exp(K_L [L]) [mol/L]. For now D, E and J share one
+# S0, D01R's J value (R02R's liquid, no L); D01R's own per-species values
+# were D 0.0284, E 0.01505, J 0.0886. L/mol: each 1 mol/L of L multiplies
+# every solubility by exp(K_L) = 1.18. Both were tuned for an earlier F01R
+# cake (~98.6 % dissolved); retune them for the current one.
+SHARED_SOLUBILITY_S0 = 0.0886  # mol/L
+SOLUBILITY_S0 = {name: SHARED_SOLUBILITY_S0 for name in CRYSTAL_SPECIES}
 SOLVENT_K_L = 0.166
 
 # Kinetics per species, (k, E_a [J/mol], order), D01R's nucleation and

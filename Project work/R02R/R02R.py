@@ -12,16 +12,16 @@ compound name; the database controls the order PharmaPy uses internally.
 
 Three parallel reactions consume the same reactants::
 
-    A + C + G + I --> D
-    A + C + G + I --> E
-    A + C + G + I --> J
+    A + F + G + I --> D
+    A + F + G + I --> E
+    A + F + G + I --> J
 
-each with its own power-law orders in A, C and G. I is consumed by every
+each with its own power-law orders in A, F and G. I is consumed by every
 reaction but carries no order, so its concentration does not enter any rate.
 
 The feed is a case study in reactant starvation, explored by the isothermal
-sweep in ``R02R_temp_sweep.py``. C is fed at about an eighth of A and a
-tenth of G and is used up almost completely. J has the highest order in C
+sweep in ``R02R_temp_sweep.py``. F is fed at about an eighth of A and a
+tenth of G and is used up almost completely. J has the highest order in F
 (0.5, against 0.21 for E and 0.29 for D), so it is starved first and E
 takes most of the product in the mid range, although the rate constants
 alone favour J. J only leads below about 30 C, and D, the one reaction with
@@ -89,18 +89,18 @@ RESULTS_DIR = HERE / "results"
 
 # ---------------------------------------------------------------- settings
 REACTIONS = [
-    "C + A + I + G --> D + H",
-    "C + A + I + G --> E + H",
-    "C + A + I + G --> J + H",
+    "F + A + I + G --> D + H",
+    "F + A + I + G --> E + H",
+    "F + A + I + G --> J + H",
 ]
 # Orders for each reaction, keyed by reactant. I is deliberately not given
 # an order: PharmaPy needs one per reactant, so it gets 0 (C_I**0 = 1).
 REACTION_ORDERS = [
-    {"C": 0.29, "A": 1.46, "I": 0.0, "G": 0.29},  # --> D
-    {"C": 0.21, "A": 1.60, "I": 0.0, "G": 0.21},  # --> E
-    {"C": 0.50, "A": 0.97, "I": 0.0, "G": 0.50},  # --> J
+    {"F": 0.29, "A": 1.46, "I": 0.0, "G": 0.29},  # --> D
+    {"F": 0.21, "A": 1.60, "I": 0.0, "G": 0.21},  # --> E
+    {"F": 0.50, "A": 0.97, "I": 0.0, "G": 0.50},  # --> J
 ]
-RATE_CONSTANTS = np.array([6.3333e-4, 1.1667e-3, 3.333e-3])  # L/mol/s, at KINETICS_TEMP_REF
+RATE_CONSTANTS = np.array([1.1667e-3, 6.3333e-4, 3.333e-3])  # L/mol/s, at KINETICS_TEMP_REF
 ACTIVATION_ENERGIES = np.array([74863.4, -54320.2, -104523.8])  # J/mol
 KINETICS_TEMP_REF = 60+273.15  # K, rate constants above are quoted here
 HEAT_OF_REACTION = np.array([-6.22e5, -6.22e5, -6.22e5])  # J/mol, negative = exothermic
@@ -108,10 +108,10 @@ HEAT_OF_REACTION = np.array([-6.22e5, -6.22e5, -6.22e5])  # J/mol, negative = ex
 # Feeds, each (label, mass flow [kg/s], basis, composition). With basis
 # "mass_frac" the composition is solute mass fractions and the solvent (H) is
 # the remainder; with basis "mol/L" it is the full molar composition, solvent
-# included. C is the scarce reactant (see the module docstring).
+# included. F is the scarce reactant (see the module docstring).
 FEEDS = [
     ("Feed", 2.0e-2, "mol/L", 
-     {"A": 3.841, "C": 0.509, "G": 5.276, "H": 5.938, "I": 1.110}),
+     {"A": 3.841, "F": 0.509, "G": 5.276, "H": 5.938, "I": 1.110}),
 ]
 FEED_TEMPERATURE = 303.15  # K
 

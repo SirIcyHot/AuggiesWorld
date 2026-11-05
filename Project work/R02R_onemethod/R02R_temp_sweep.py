@@ -63,12 +63,7 @@ def build_isothermal_reactor(temp: float, database_path: Path):
         temp_ref=R02R.KINETICS_TEMP_REF,
         delta_hrxn=R02R.HEAT_OF_REACTION,
     )
-    reactor.Inlet = [
-        R02R.make_feed(database_path, R02R.FEED_A, R02R.FLOW_A,
-                       species_names, solvent_name),
-        R02R.make_feed(database_path, R02R.FEED_B, R02R.FLOW_B,
-                       species_names, solvent_name),
-    ]
+    reactor.Inlet = R02R.make_feeds(database_path)
     return reactor
 
 

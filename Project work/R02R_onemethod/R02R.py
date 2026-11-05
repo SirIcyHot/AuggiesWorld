@@ -3,9 +3,7 @@ refactored ContinuousReactor.
 
 The flowsheet is::
 
-    FEED_A --+
-             +--> R02R
-    FEED_B --+
+    FEED --> R02R
 
 ``R02R`` is ``PharmaPy.Reactors_Refactored.ContinuousReactor``. The refactored
 vessel takes a list of inlet streams directly, so the separate mixer unit the
@@ -21,12 +19,23 @@ Three parallel reactions consume the same reactants::
 each with its own power-law orders in A, C and G. I is consumed by every
 reaction but carries no order, so its concentration does not enter any rate.
 
+The feed is a case study in reactant starvation, explored by the isothermal
+sweep in ``R02R_temp_sweep.py``. C is fed at about an eighth of A and a
+tenth of G and is used up almost completely. J has the highest order in C
+(0.5, against 0.21 for E and 0.29 for D), so it is starved first and E
+takes most of the product in the mid range, although the rate constants
+alone favour J. J only leads below about 30 C, and D, the one reaction with
+a positive activation energy, wins at high temperature.
+
 Everything is specified and reported on a mass basis: feeds as mass flows
 [kg/s] with solute mass fractions, the initial charge as a mass [kg] with
 solute mass fractions, and compositions plotted as mass fractions. The
 solvent makes up whatever mass fraction the solutes leave. The kinetics are
 the exception: PharmaPy evaluates the rate law on molar concentrations, so
-rate constants stay in L/mol/s.
+rate constants stay in L/mol/s. So is the feed, which is quoted in mol/L as a full composition (solvent included) and converted to mass
+fractions with the database molecular weights. PharmaPy then recomputes the
+density from the pure-liquid densities, so the concentrations it sees are
+about 9% below the quoted ones.
 
 The reactor is jacketed rather than isothermal so that temperature is a solved
 state: the heat of reaction raises it, the jacket and the feeds pull it back,
@@ -80,29 +89,31 @@ RESULTS_DIR = HERE / "results"
 
 # ---------------------------------------------------------------- settings
 REACTIONS = [
-    "A + C + G + I --> D",
-    "A + C + G + I --> E",
-    "A + C + G + I --> J",
+    "C + A + I + G --> D + H",
+    "C + A + I + G --> E + H",
+    "C + A + I + G --> J + H",
 ]
 # Orders for each reaction, keyed by reactant. I is deliberately not given
-# an order: PharmaPy needs one per reactant, so it gets 0 (C_I**0 = 1). TODO I think one of these was swapped
+# an order: PharmaPy needs one per reactant, so it gets 0 (C_I**0 = 1).
 REACTION_ORDERS = [
-    {"A": 1.46, "C": 0.29, "G": 0.29},  # --> D
-    {"A": 1.60, "C": 0.21, "G": 0.21},  # --> E
-    {"A": 0.97, "C": 0.50, "G": 0.50},  # --> J
+    {"C": 0.29, "A": 1.46, "I": 0.0, "G": 0.29},  # --> D
+    {"C": 0.21, "A": 1.60, "I": 0.0, "G": 0.21},  # --> E
+    {"C": 0.50, "A": 0.97, "I": 0.0, "G": 0.50},  # --> J
 ]
 RATE_CONSTANTS = np.array([1.1667e-3, 6.3333e-4, 3.333e-3])  # L/mol/s, at KINETICS_TEMP_REF
 ACTIVATION_ENERGIES = np.array([74863.4, -54320.2, -104523.8])  # J/mol
 KINETICS_TEMP_REF = 60+273.15  # K, rate constants above are quoted here
 HEAT_OF_REACTION = np.array([-6.22e5, -6.22e5, -6.22e5])  # J/mol, negative = exothermic
 
-# Compositions are solute mass fractions; the solvent (H) is the remainder,
-# so it never needs listing.
-FLOW_A = 1.0e-2  # kg/s
-FLOW_B = 1.0e-2  # kg/s
-FEED_TEMPERATURE = 313.15  # K
-FEED_A = {"A": 0.0207, "G": 0.0337}  # mass fraction, ~0.33 mol/L each
-FEED_B = {"C": 0.0459, "I": 0.0264}  # mass fraction, ~0.33 mol/L each
+# Feeds, each (label, mass flow [kg/s], basis, composition). With basis
+# "mass_frac" the composition is solute mass fractions and the solvent (H) is
+# the remainder; with basis "mol/L" it is the full molar composition, solvent
+# included. C is the scarce reactant (see the module docstring).
+FEEDS = [
+    ("Feed", 2.0e-2, "mol/L", 
+     {"A": 3.841, "C": 0.509, "G": 5.276, "H": 5.938, "I": 1.110}),
+]
+FEED_TEMPERATURE = 303.15  # K
 
 REACTOR_MASS = 80.0  # kg, initial charge 
 REACTOR_DIAMETER = 0.2  # m, jacket area = 4 V / D
@@ -220,14 +231,35 @@ def reaction_order_matrix(species_names: tuple[str, ...]) -> list[list[float]]:
     return matrix
 
 
+def molar_to_mass_fraction(
+    conc: Mapping[str, float],
+    database_path: Path,
+) -> dict[str, float]:
+    """Convert a full molar composition [mol/L] to named mass fractions.
+
+    The composition must include the solvent: c_i * MW_i summed over every
+    species is the solution density, so nothing is left to close on.
+    """
+    parsed_database = ParseDatabase(str(database_path), to_arrays=False)
+    mw = dict(zip(parsed_database["name_species"], parsed_database["mw"]))
+    mass_conc = {name: value * mw[name] for name, value in conc.items()}
+    total = sum(mass_conc.values())
+    return {name: value / total for name, value in mass_conc.items()}
+
+
 def make_feed(
     database_path: Path,
     composition: Mapping[str, float],
     flow_rate: float,
     species_names: tuple[str, ...],
     solvent_name: str,
+    basis: str = "mass_frac",
 ) -> LiquidStream:
     """Create one named-composition liquid feed; flow_rate in kg/s."""
+    if basis == "mol/L":
+        composition = molar_to_mass_fraction(composition, database_path)
+    elif basis != "mass_frac":
+        raise ValueError(f"Unknown composition basis '{basis}'.")
     return LiquidStream(
         str(database_path),
         temp=FEED_TEMPERATURE,
@@ -237,10 +269,27 @@ def make_feed(
         name_solv=solvent_name,
     )
 
+
+def make_feeds(database_path: Path) -> list[LiquidStream]:
+    """Create every feed in ``FEEDS``, in order."""
+    species_names = database_species(database_path)
+    solvent_name = database_solvent(species_names)
+    return [
+        make_feed(database_path, composition, flow_rate, species_names,
+                  solvent_name, basis)
+        for _, flow_rate, basis, composition in FEEDS
+    ]
+
+
+def total_feed_flow() -> float:
+    """Combined mass flow of ``FEEDS`` [kg/s]."""
+    return sum(flow_rate for _, flow_rate, _, _ in FEEDS)
+
+
 def build_reactor(
     database_path: Path | str = DEFAULT_DATABASE_PATH,
 ) -> BalanceRecordingReactor:
-    """Build R02R with both feeds attached as separate inlets."""
+    """Build R02R with each feed in ``FEEDS`` as a separate inlet."""
     database_path = Path(database_path)
     species_names = database_species(database_path)
     solvent_name = database_solvent(species_names)
@@ -272,10 +321,7 @@ def build_reactor(
         temp_in=COOLANT_TEMPERATURE,
         h_conv=COOLANT_H_CONV,
     )
-    reactor.Inlet = [
-        make_feed(database_path, FEED_A, FLOW_A, species_names, solvent_name),
-        make_feed(database_path, FEED_B, FLOW_B, species_names, solvent_name),
-    ]
+    reactor.Inlet = make_feeds(database_path)
     return reactor
 
 
@@ -463,15 +509,16 @@ def plot_native(reactor: ContinuousReactor):
 
 def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
     """(group, setting, value) rows describing this run."""
-    def composition(named):
+    def composition(named, basis="mass_frac"):
         solutes = {k: v for k, v in named.items() if v}
         if not solutes:
             return "solvent only"
+        unit = "mol/L" if basis == "mol/L" else "mass frac."
         return (", ".join(f"{k} {v:g}" for k, v in solutes.items())
-                + " (mass frac.)")
+                + f" ({unit})")
 
     initial_vol = float(np.ravel(reactor.result.vessel_vol)[0])
-    tau = REACTOR_MASS / (FLOW_A + FLOW_B)
+    tau = REACTOR_MASS / total_feed_flow()
     area = 4 * initial_vol / REACTOR_DIAMETER
     u_ht = 1.0 / (1.0 / REACTOR_H_CONV + 1.0 / COOLANT_H_CONV)
     final = reactor.result
@@ -488,8 +535,9 @@ def settings_rows(reactor: ContinuousReactor) -> list[tuple[str, str, str]]:
         ("Initial conditions", "Mass",
          f"{REACTOR_MASS:g} kg ({initial_vol:.4g} m³)"),
         ("Initial conditions", "Charge", composition(INITIAL_REACTOR)),
-        ("Feeds", "Feed A", f"{FLOW_A:g} kg/s, {composition(FEED_A)}"),
-        ("Feeds", "Feed B", f"{FLOW_B:g} kg/s, {composition(FEED_B)}"),
+        *[("Feeds", label,
+           f"{flow_rate:g} kg/s, {composition(named, basis)}")
+          for label, flow_rate, basis, named in FEEDS],
         ("Feeds", "Feed temperature", f"{FEED_TEMPERATURE:g} K"),
         ("Feeds", "Residence time", f"{tau:g} s ({tau / 60:.1f} min)"),
         *[("Kinetics", f"Rxn {i + 1}: {rxn}",
@@ -557,8 +605,7 @@ def plot_mass_balance(reactor: ContinuousReactor,
     generation = balances.generation[-1] * to_g
     outlet = balances.outlet[-1] * to_g
     accumulation = balances.accumulation[-1] * to_g
-    feed_labels = ["Feed A", "Feed B"] + [
-        f"Feed {i + 1}" for i in range(2, len(feeds))]
+    feed_labels = [label for label, *_ in FEEDS]
 
     def cell(value):
         return "0" if abs(value) < 5e-7 else f"{value:.4f}"
