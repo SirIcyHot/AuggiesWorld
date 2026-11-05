@@ -84,6 +84,9 @@ Figures are written to ``results/`` next to this file (with a
     SBR_settings.png      the settings and initial conditions used
     SBR_mass_balance.png  charged, dosed, reacted and final moles per species
 
+The concentration profiles are also written to
+``SBR_concentrations.xlsx`` with one column per database species.
+
 """
 
 from __future__ import annotations
@@ -565,6 +568,52 @@ def mole_history(reactor) -> dict[str, np.ndarray]:
             for j, name in enumerate(reactor.name_species)}
 
 
+def concentration_history(reactor) -> dict[str, np.ndarray]:
+    """Molar concentration of every liquid species over time [mol/L]."""
+    mw = molecular_weights()
+    mass_j = np.asarray(reactor.result.mass_j_liquid0, dtype=float)
+    volume = np.asarray(reactor.result.vessel_vol, dtype=float).ravel()
+    return {
+        name: mass_j[:, j] / (mw[name] * volume)
+        for j, name in enumerate(reactor.name_species)
+    }
+
+
+def export_concentration_profiles(
+    reactor,
+    out_path: Path | None = None,
+) -> Path:
+    """Write all species concentration profiles to an Excel workbook."""
+    import pandas as pd
+
+    if out_path is None:
+        out_path = RESULTS_DIR / f"SBR_concentrations{figure_suffix()}.xlsx"
+
+    time = np.asarray(reactor.result.time, dtype=float)
+    concentrations = concentration_history(reactor)
+    profiles = {
+        "Time [s]": time,
+        "Time [min]": time / 60.0,
+        **{f"{name} [mol/L]": values
+           for name, values in concentrations.items()},
+    }
+    settings = {
+        "Kinetics model": KINETICS_MODEL,
+        "Temperature mode": "isothermal" if ISOTHERMAL else "jacketed",
+        "Database": str(DB_PATH),
+        "Species": ", ".join(reactor.name_species),
+    }
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
+        pd.DataFrame(profiles).to_excel(
+            writer, sheet_name="Concentrations", index=False)
+        pd.DataFrame(
+            {"Setting": list(settings), "Value": list(settings.values())}
+        ).to_excel(writer, sheet_name="Run info", index=False)
+    return out_path
+
+
 def mole_balance(reactor) -> SimpleNamespace:
     """Charged, dosed, reacted and final moles per species at the end [mol].
 
@@ -892,6 +941,8 @@ if __name__ == "__main__":
     print_summary(sbr)
     save_figures(sbr)
     print(f"Figures saved to {RESULTS_DIR}")
+    concentration_path = export_concentration_profiles(sbr)
+    print(f"Concentration profiles saved to {concentration_path}")
 
     if not args.no_show:
         import matplotlib.pyplot as plt
