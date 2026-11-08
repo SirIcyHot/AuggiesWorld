@@ -143,14 +143,32 @@ def eyring_rate_constants(temp: float) -> np.ndarray:
     return prefactor * np.exp(-ACTIVATION_ENERGIES / (GAS_CONSTANT * temp))
 
 
+# What-if factors on individual Eyring k values, keyed by reaction string
+# ("Z5 --> E": 1e6) or "all". A factor f is the same as lowering that barrier
+# by R*T*ln(f), i.e. 6.4 kJ/mol per factor of 10 at 60 C. Applied before
+# the K_MAX cap, so branching stays consistent. Empty = reported barriers.
+RATE_MULTIPLIERS: dict[str, float] = {}
+
+
 def rate_constants(temp: float = KINETICS_TEMP_REF,
-                   k_max: float = K_MAX) -> np.ndarray:
+                   k_max: float = K_MAX,
+                   multipliers: Mapping[str, float] | None = None
+                   ) -> np.ndarray:
     """Eyring k at ``temp`` with each species' total loss capped at k_max.
 
-    All steps leaving one species are scaled by the same factor, so the
-    branching between them is the Eyring value.
+    ``multipliers`` (default RATE_MULTIPLIERS) scales chosen steps first.
+    All steps leaving one species are then scaled by the same factor, so the
+    branching between them is the (multiplied) Eyring value.
     """
-    k = eyring_rate_constants(temp)
+    if multipliers is None:
+        multipliers = RATE_MULTIPLIERS
+    unknown = set(multipliers) - set(REACTIONS) - {"all"}
+    if unknown:
+        raise KeyError("RATE_MULTIPLIERS keys must be reaction strings or "
+                       "'all': " + ", ".join(sorted(unknown)))
+    k = eyring_rate_constants(temp) * np.array([
+        multipliers.get(rxn, multipliers.get("all", 1.0))
+        for rxn in REACTIONS])
     reactants = [reactant for reactant, _, _ in STEPS]
     total_out = {name: 0.0 for name in reactants}
     for name, k_i in zip(reactants, k):
