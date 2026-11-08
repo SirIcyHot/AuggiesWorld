@@ -66,11 +66,11 @@ import numpy as np
 
 from PharmaPy.IntegratorBackends import ScipyBackend
 from PharmaPy.Kinetics import CrystKinetics
-from PharmaPy.DataClasses import IntraPhaseProcess, PhaseRef
-from PharmaPy.Mechanisms import OneDFVMMechanism, ReactionMechanism
+from PharmaPy.Mechanisms import OneDFVMMechanism
 from PharmaPy.MixedPhases_Refactored import MixedStream
 from PharmaPy.Phases_Refactored import LiquidPhase, SolidPhase
 from PharmaPy.Crystallizers_Refactored import ContinuousCrystallizer
+from PharmaPy.Reactive_Crystallizers import ContinuousReactiveCrystallizer
 from PharmaPy.Utilities import CoolingWater
 from CR01H import (
     ACTIVATION_ENERGIES,
@@ -201,7 +201,7 @@ def build_reactor(
     species_names = database_species(database_path)
     solvent_name = database_solvent(species_names)
 
-    reactor = ContinuousCrystallizer(
+    reactor = ContinuousReactiveCrystallizer(
         integrator=ScipyBackend(),
         h_conv=REACTOR_H_CONV,
         diam=REACTOR_DIAMETER,
@@ -240,13 +240,7 @@ def build_reactor(
         sup_sat_type=SUPERSATURATION_TYPE,
         solubility_basis="mole_per_volume_solution",
     )
-    reactor.intraphase_processes = [
-        IntraPhaseProcess(
-            phaseref=PhaseRef("liquid", 0),
-            mechanism=ReactionMechanism(build_kinetics(database_path), liquid),
-        )
-    ]
-    reactor.nomenclature(overwrite=True)
+    reactor.RxnKinetics = build_kinetics(database_path)
     reactor.Utility = CoolingWater(
         mass_flow=COOLANT_MASS_FLOW,
         temp_in=CR02_TEMPERATURE,

@@ -6,8 +6,9 @@ The flowsheet is::
              +--> CR01
     FEED_C --+
 
-``CR01`` is a ``PharmaPy.Crystallizers_Refactored.ContinuousCrystallizer``
-with a liquid reaction region and an F-only 1D-FVM solid population balance.
+``CR01`` is a ``PharmaPy.Reactive_Crystallizers.ContinuousReactiveCrystallizer``
+(pharmapy-org >= 0.3.3): a liquid reaction set through its ``RxnKinetics``
+and an F-only 1D-FVM solid population balance through ``CrystKinetics``.
 Feed compositions are supplied by compound name; the database controls the
 order PharmaPy uses internally.
 
@@ -56,14 +57,14 @@ import numpy as np
 
 from PharmaPy.IntegratorBackends import ScipyBackend
 from PharmaPy.Kinetics import CrystKinetics
-from PharmaPy.DataClasses import IntraPhaseProcess, PhaseRef
+from PharmaPy.DataClasses import PhaseRef
 from PharmaPy.Mechanisms import (
     OneDFVMMechanism,
     PopulationBalanceMechanism,
-    ReactionMechanism,
 )
 from PharmaPy.Phases_Refactored import LiquidPhase, SolidPhase
 from PharmaPy.Crystallizers_Refactored import ContinuousCrystallizer
+from PharmaPy.Reactive_Crystallizers import ContinuousReactiveCrystallizer
 from PharmaPy.Utilities import CoolingWater
 from R01H import (
     ACTIVATION_ENERGIES,
@@ -146,7 +147,7 @@ def build_reactor(
     species_names = database_species(database_path)
     solvent_name = database_solvent(species_names)
 
-    reactor = ContinuousCrystallizer(
+    reactor = ContinuousReactiveCrystallizer(
         integrator=ScipyBackend(),
         h_conv=REACTOR_H_CONV,
         diam=REACTOR_DIAMETER,
@@ -184,13 +185,7 @@ def build_reactor(
         growth=GROWTH,
         solubility_basis="mole_per_volume_solution",
     )
-    reactor.intraphase_processes = [
-        IntraPhaseProcess(
-            phaseref=PhaseRef("liquid", 0),
-            mechanism=ReactionMechanism(build_kinetics(database_path), liquid),
-        )
-    ]
-    reactor.nomenclature(overwrite=True)
+    reactor.RxnKinetics = build_kinetics(database_path)
     reactor.Utility = CoolingWater(
         mass_flow=COOLANT_MASS_FLOW,
         temp_in=COOLANT_TEMPERATURE,
