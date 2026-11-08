@@ -118,5 +118,59 @@
     "visc_liq":[-2.0,600,0,0],
     "surf_tension":0.043,
     "p_vap":[8,2000,-40],
-    "source":"DUMMY placeholder values (D02R solvent), replace with real data"}
+    "source":"DUMMY placeholder values (D02R solvent), replace with real data"},
+  "Z1": 
+    {"mw":203.202,
+    "source":"MW only; other properties TODO"},
+  "INT1": 
+    {"mw":186.195,
+    "source":"MW only; other properties TODO"},
+  "INT1ONO2": 
+    {"mw":248.199,
+    "source":"MW only; other properties TODO"},
+  "INT1OH": 
+    {"mw":203.202,
+    "source":"MW only; other properties TODO"},
+  "INT1AcO": 
+    {"mw":245.239,
+    "source":"MW only; other properties TODO"},
+  "Z2": 
+    {"mw":218.173,
+    "source":"MW only; other properties TODO"},
+  "INT3": 
+    {"mw":348.272,
+    "source":"MW only; other properties TODO"},
+  "INT4": 
+    {"mw":455.337,
+    "source":"MW only; other properties TODO"},
+  "Z3": 
+    {"mw":354.232,
+    "source":"MW only; other properties TODO"},
+  "INT5": 
+    {"mw":267.158,
+    "source":"MW only; other properties TODO"},
+  "Z4": 
+    {"mw":219.157,
+    "source":"MW only; other properties TODO"},
+  "Z5": 
+    {"mw":323.222,
+    "source":"MW only; other properties TODO"},
+  "Z6": 
+    {"mw":428.271,
+    "source":"MW only; other properties TODO"},
+  "INT2OH": 
+    {"mw":281.185,
+    "source":"MW only; other properties TODO"},
+  "Z7": 
+    {"mw":293.196,
+    "source":"MW only; other properties TODO"},
+  "INT2ONO2": 
+    {"mw":326.182,
+    "source":"MW only; other properties TODO"},
+  "BP1": 
+    {"mw":206.154,
+    "source":"MW only; other properties TODO"},
+  "BP2": 
+    {"mw":122.08,
+    "source":"MW only; other properties TODO"}
 }
