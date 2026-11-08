@@ -85,9 +85,10 @@ def plot(results: dict[str, np.ndarray]):
         ax.spines[["top", "right"]].set_visible(False)
         ticks = FACTORS[::2]
         ax.set_xticks(ticks)
-        ax.set_xticklabels([f"$10^{{{int(np.log10(f))}}}$\n"
-                            (f"−{rt_ln10 * np.log10(f):.0f} kJ/mol" if f > 1 else "0 kJ/mol")
-                            for f in ticks])
+        drops = [f"−{rt_ln10 * np.log10(f):.0f} kJ/mol" if f > 1
+                 else "0 kJ/mol" for f in ticks]
+        ax.set_xticklabels([f"$10^{{{int(np.log10(f))}}}$\n{drop}"
+                            for f, drop in zip(ticks, drops)])
         ax.minorticks_off()
     axes[0].set_ylabel("mol out per mol Z1 fed")
     axes[0].legend(title="Steps sped up", frameon=False, loc="upper left")
