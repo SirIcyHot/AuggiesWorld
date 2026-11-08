@@ -4,12 +4,13 @@
 version writes each step with the co-reactants, co-products and catalysts
 from the DFT mechanism, so
 
-* rates depend on the bulk species (acetyl nitrate, HNO3, NH4NO3, AcOH ...)
+* rates depend on the bulk species (K, A, NH4NO3, H ...)
   as well as the network species, and
 * the mass balance closes (apart from the database MW issues listed below).
 
-Everything else - feed, vessel, residence time, isothermal operation - is
-``R02R_network.py`` unchanged.
+Vessel, residence time and isothermal operation are ``R02R_network.py``
+unchanged. The feed is R02R_network's plus a small water stream (2 wt% of
+the A fed, ``WATER_FRACTION_OF_A``).
 
 Species names
 -------------
@@ -25,18 +26,21 @@ track charge, so the ions are ordinary species.
 How the DFT table was turned into reactions
 -------------------------------------------
 * A species listed on both sides is a **catalyst**: it is in the rate law
-  but not consumed (NH4NO3, AcOH, AcONO2 in several steps).
+  but not consumed (NH4NO3, H, K in several steps).
 * A species listed only as consumed, where the mass balance says it is not
-  consumed, is also treated as a catalyst (HNO3 in step 15, NH4NO3 in steps
+  consumed, is also treated as a catalyst (A in step 15, NH4NO3 in steps
   18 and 21, NO2 in step 20).
-* "NO2 + OH" (steps 12-14) is read as HNO3, and the lone NO2 in step 20 as
-  HNO3 too: neither NO2 nor OH is made anywhere else in the network.
+* "NO2 + OH" (steps 12-14) is read as A, and the lone NO2 in step 20 as
+  A too: neither NO2 nor OH is made anywhere else in the network.
 * Steps 1-5 get the ion the mass balance is missing: NO3- out of steps 1-2,
   H+ out of steps 3-5.
-* HNO3 + Ac2O --> AcONO2 + AcOH (acetyl nitrate formation) has no reported
-  barrier; it is treated as fast. The two AcONO2 --> NO2+ + AcO- rows are
-  left out: nothing in the network consumes NO2+ or AcO-, so they would
-  only drain acetyl nitrate.
+* K formation, A + G --> K + H, has no reported rate. It uses an Arrhenius
+  initial guess (``K_FORMATION_K_REF``, ``K_FORMATION_EA``): 5e-4 L/mol/s
+  at 25 C and 60 kJ/mol, i.e. ~6e-3 L/mol/s at 60 C. The basis is a
+  half-life of about 5 min at room temperature in excess G; it is an order
+  of magnitude guess, not data, and is irreversible here (no K_eq).
+* The two K --> NO2+ + AcO- rows are left out: nothing in the network
+  consumes NO2+ or AcO-, so they would only drain K.
 * Database MWs that do not balance (left as they are, see ``check_mass``):
   INT3 is 2.016 below steps 9/10, INT5 is 14.03 below steps 12/14, and Z4
   is ~3 below step 13. All three carry negligible flux at 60 C.
@@ -63,11 +67,10 @@ branching is kept. The bulk concentrations used are the solved steady-state
 ones (``run_reactor`` iterates; see there), so the cap never throttles a
 step below what its Eyring k gives at the conditions actually reached.
 
-Acetyl nitrate formation has no barrier, so it runs at the cap. That sets
-how little free HNO3 is left, and HNO3 catalyses Z2 --> Z5 and is consumed
-by the D route (steps 12-14). Results that depend on HNO3 therefore depend
+K formation uses a guessed rate (above). It sets how much free A is left, and A catalyses Z2 --> Z5 and is consumed
+by the D route (steps 12-14). Results that depend on A therefore depend
 on this unreported step; a measured rate or equilibrium constant for
-HNO3 + Ac2O <=> AcONO2 + AcOH would pin it down.
+A + G <=> K + H would pin it down.
 
 Run it with::
 
@@ -95,13 +98,22 @@ DEFAULT_DATABASE_PATH = (HERE.parents[1] / "compounddatabase"
                          / "compound_database_network.json")
 RESULTS_DIR = net.RESULTS_DIR
 
-DISPLAY = {"A": "HNO3", "B": "H2O", "G": "Ac2O", "H": "AcOH",
-           "I": "NH4NO3", "K": "AcONO2", "Hplus": "H+", "NO3minus": "NO3-"}
+# Labels used in tables and plots. A, G, H and K keep their database names.
+DISPLAY = {"B": "H2O", "I": "NH4NO3", "Hplus": "H+", "NO3minus": "NO3-"}
 
 # ---------------------------------------------------------------- reactions
 # Each step: consumed {species: coeff}, produced {species: coeff},
 # catalysts (in the rate law, not consumed), Ea [kJ/mol] (None = not
 # reported, treated as fast), and a note on any change from the DFT table.
+# K formation, A + G --> K + H. No measured rate is available, so this is
+# an initial guess (see the module docstring): pseudo-first-order half-life
+# of about 5 min at 25 C in ~5 mol/L G gives k = ln2 / (300 s * 5 mol/L)
+# ~ 5e-4 L/mol/s, with an acyl-transfer-like Ea of 60 kJ/mol. That is
+# ~6e-3 L/mol/s at 60 C. Replace with a fitted value when you have one.
+K_FORMATION_K_REF = 5.0e-4  # L/mol/s at K_FORMATION_T_REF
+K_FORMATION_EA = 60.0  # kJ/mol
+K_FORMATION_T_REF = 298.15  # K
+
 STEPS = [
     dict(n=1, consumes={"Z1": 1, "K": 1}, produces={"INT1": 1, "H": 1,
          "NO3minus": 1}, catalysts=("I",), ea=48.8,
@@ -133,15 +145,15 @@ STEPS = [
          catalysts=(), ea=33.1, note=""),
     dict(n=12, consumes={"Z2": 1, "A": 1}, produces={"INT5": 1},
          catalysts=("H",), ea=118.9,
-         note="NO2+OH read as HNO3"),
+         note="NO2+OH read as A"),
     dict(n=13, consumes={"INT5": 1, "A": 1}, produces={"Z4": 1, "BP2": 1},
          catalysts=("H",), ea=248.9,
-         note="NO2+OH read as HNO3"),
+         note="NO2+OH read as A"),
     dict(n=14, consumes={"INT5": 1, "A": 1}, produces={"D": 1, "BP2": 1},
          catalysts=("H",), ea=123.6,
-         note="NO2+OH read as HNO3"),
+         note="NO2+OH read as A"),
     dict(n=15, consumes={"Z2": 1, "K": 1}, produces={"Z5": 1},
-         catalysts=("I", "A"), ea=73.3, note="HNO3 catalyst (mass)"),
+         catalysts=("I", "A"), ea=73.3, note="A catalyst (mass)"),
     dict(n=16, consumes={"Z5": 1, "K": 1}, produces={"Z6": 1},
          catalysts=(), ea=166.0, note=""),
     dict(n=17, consumes={"Z5": 1, "H": 1}, produces={"INT2OH": 1, "G": 1},
@@ -154,22 +166,22 @@ STEPS = [
          ea=116.81, note=""),
     dict(n=20, consumes={"INT2OH": 1, "K": 1},
          produces={"INT2ONO2": 1, "H": 1}, catalysts=("A",), ea=147.2,
-         note="NO2 → HNO3 catalyst (mass)"),
+         note="NO2 → A catalyst (mass)"),
     dict(n=21, consumes={"INT2OH": 1, "K": 1},
          produces={"E": 1, "H": 1, "CH2O": 1}, catalysts=("I",), ea=129.0,
          note="NH4NO3 catalyst (mass)"),
     dict(n=22, consumes={"INT2ONO2": 1}, produces={"E": 1, "CH2O": 1},
          catalysts=("K",), ea=183.1, note=""),
     dict(n=23, consumes={"A": 1, "G": 1}, produces={"K": 1, "H": 1},
-         catalysts=(), ea=None,
-         note="no Ea reported: fast"),
+         catalysts=(), ea=K_FORMATION_EA, k_ref=K_FORMATION_K_REF,
+         t_ref=K_FORMATION_T_REF, note="K formation: guessed k, Ea"),
 ]
 
 OPERATING_TEMPERATURE = net.OPERATING_TEMPERATURE
 K_MAX = net.K_MAX  # 1/s, cap on a species' pseudo-first-order loss
 TS_ENTROPY_PENALTY = 0.0  # kJ/mol per transition-state molecule beyond 1
 # Upper-bound bulk concentrations [mol/L] used only to size the cap: the
-# quoted feed values, with AcOH allowed to grow by the HNO3 it can make.
+# quoted feed values, with H allowed to grow by the A it can make.
 C_REF = {"A": 3.841, "G": 5.276, "H": 5.938 + 3.841, "I": 1.110,
          "K": 3.841}
 C_REF_DEFAULT = 1.0  # mol/L, any other co-reactant (e.g. water)
@@ -177,6 +189,40 @@ BULK_SPECIES = ("A", "B", "G", "H", "I", "K")  # co-reactants/catalysts
 C_REF_FLOOR = 1e-3  # mol/L, so an absent species (water) still sizes a cap
 CAP_ITERATIONS = 6
 RUNTIME = net.RUNTIME
+
+# Feeds: the R02R_network feed plus a small pure-water stream whose mass flow
+# is WATER_FRACTION_OF_A of the mass flow of A in the main feed (2 wt%).
+MAIN_FEED = net.FEEDS[0]  # ("Feed", kg/s, "mol/L", composition)
+WATER_FRACTION_OF_A = 0.02
+
+
+def feeds(database_path: Path = DEFAULT_DATABASE_PATH):
+    """(label, mass flow [kg/s], basis, composition) for every inlet."""
+    label, flow, basis, composition = MAIN_FEED
+    mass_frac = net.molar_to_mass_fraction(composition, database_path)
+    water_flow = WATER_FRACTION_OF_A * mass_frac["A"] * flow
+    return [MAIN_FEED, ("Water", water_flow, "mass_frac", {"B": 1.0})]
+
+
+def total_feed_flow(database_path: Path = DEFAULT_DATABASE_PATH) -> float:
+    return sum(flow for _, flow, _, _ in feeds(database_path))
+
+
+def make_feeds(database_path: Path) -> list:
+    """LiquidStream for each entry of ``feeds``."""
+    from PharmaPy.Streams_Refactored import LiquidStream
+    species = net.database_species(database_path)
+    solvent = net.database_solvent(species)
+    streams = []
+    for _, flow, basis, composition in feeds(database_path):
+        if basis == "mol/L":
+            composition = net.molar_to_mass_fraction(composition,
+                                                     database_path)
+        streams.append(LiquidStream(
+            str(database_path), temp=net.FEED_TEMPERATURE,
+            mass_frac=net.named_mass_fraction(composition, species, solvent),
+            mass_flow=flow, name_solv=solvent))
+    return streams
 
 
 def step_label(step) -> str:
@@ -202,12 +248,21 @@ def participating_species() -> list[str]:
 
 
 def eyring_rate_constants(temp: float) -> np.ndarray:
-    """Uncapped Eyring k [(L/mol)^(n-1)/s]; unreported Ea taken as 0."""
+    """Uncapped k [(L/mol)^(n-1)/s] at ``temp``.
+
+    DFT steps use Eyring with their barrier. A step with its own ``k_ref``
+    (K formation) uses Arrhenius from k_ref at t_ref instead.
+    """
     prefactor = net.BOLTZMANN * temp / net.PLANCK
-    ea = np.array([(s["ea"] or 0.0)
-                   + TS_ENTROPY_PENALTY * (molecularity(s) - 1)
-                   for s in STEPS]) * 1e3
-    return prefactor * np.exp(-ea / (net.GAS_CONSTANT * temp))
+    k = np.empty(len(STEPS))
+    for i, s in enumerate(STEPS):
+        if "k_ref" in s:
+            k[i] = s["k_ref"] * np.exp(-s["ea"] * 1e3 / net.GAS_CONSTANT
+                                       * (1 / temp - 1 / s["t_ref"]))
+            continue
+        ea = (s["ea"] + TS_ENTROPY_PENALTY * (molecularity(s) - 1)) * 1e3
+        k[i] = prefactor * np.exp(-ea / (net.GAS_CONSTANT * temp))
+    return k
 
 
 def pseudo_first_order(k: np.ndarray,
@@ -273,7 +328,7 @@ def build_kinetics(database_path: Path, temp: float,
         stoich_matrix=stoich,
         partic_species=partic,
         k_params=rate_constants(temp, c_ref=c_ref),
-        ea_params=np.array([(s["ea"] or 0.0) for s in STEPS]) * 1e3,
+        ea_params=np.array([s["ea"] for s in STEPS]) * 1e3,
         temp_ref=temp,
         delta_hrxn=np.zeros(len(STEPS)),
     )
@@ -301,7 +356,7 @@ def build_reactor(database_path: Path | str = DEFAULT_DATABASE_PATH,
                                           solvent),
         mass=net.REACTOR_MASS, name_solv=solvent)
     reactor.RxnKinetics = build_kinetics(database_path, temp, c_ref)
-    reactor.Inlet = net.make_feeds(database_path)
+    reactor.Inlet = make_feeds(database_path)
     return reactor
 
 
@@ -313,9 +368,8 @@ def run_reactor(database_path: Path | str = DEFAULT_DATABASE_PATH,
     """Solve, re-sizing the cap at the steady-state bulk concentrations.
 
     The cap is first sized at C_REF (feed values). Bulk concentrations at
-    steady state can be far from those (HNO3 is almost all converted to
-    acetyl nitrate), and a cap sized for 3.8 mol/L HNO3 throttles an
-    HNO3-catalysed step ~350x too hard. So the run is repeated with C_REF
+    steady state can be far from those (most A is converted to K), and a
+    cap sized for 3.8 mol/L A throttles an A-catalysed step ~350x too hard. So the run is repeated with C_REF
     replaced by the solved concentrations (floored at C_REF_FLOOR) until the
     rate constants stop changing by more than 10%.
     """
@@ -373,7 +427,7 @@ def plot_profiles(reactor, database_path=DEFAULT_DATABASE_PATH):
     conc = {n: np.maximum(mass[:, j], 0) / mw[n] / vol
             for j, n in enumerate(reactor.name_species)}
     network = [n for n in net.network_species() if conc[n].max() > 1e-8]
-    bulk = [n for n in ("A", "G", "K", "I", "Hplus", "NO3minus", "CH2O",
+    bulk = [n for n in ("A", "B", "G", "K", "I", "Hplus", "NO3minus", "CH2O",
                         "NH2CH2COOCH3") if conc[n].max() > 1e-8]
 
     fig, axes = plt.subplots(1, 2, figsize=(15, 5), sharey=True)
@@ -401,7 +455,7 @@ def plot_profiles(reactor, database_path=DEFAULT_DATABASE_PATH):
 
 def plot_kinetics(database_path=DEFAULT_DATABASE_PATH, c_ref=None):
     """Kinetics table; k_eff uses ``c_ref`` (the run's final cap basis)."""
-    tau = net.REACTOR_MASS / net.total_feed_flow()
+    tau = net.REACTOR_MASS / total_feed_flow(database_path)
     k_raw = eyring_rate_constants(OPERATING_TEMPERATURE)
     k_used = rate_constants(c_ref=c_ref)
     k_eff = pseudo_first_order(k_used, c_ref)
@@ -412,7 +466,7 @@ def plot_kinetics(database_path=DEFAULT_DATABASE_PATH, c_ref=None):
         flag = ("capped" if ku < kr * (1 - 1e-12)
                 else "inactive" if ke * tau < 1e-2 else "")
         rows.append([str(st["n"]), step_label(st),
-                     "fast" if st["ea"] is None else f"{st['ea']:g}",
+                     f"{st['ea']:g}",
                      f"{ku:.2e} {units[molecularity(st)]}",
                      f"{ke * tau:.2g}", flag,
                      "" if abs(dm) < 0.01 else f"{dm:+.2f}", st["note"]])
