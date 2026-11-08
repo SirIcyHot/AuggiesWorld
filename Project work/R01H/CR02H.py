@@ -50,7 +50,8 @@ Figures are written to ``results/`` next to this file:
     CR02_mass_balance.png  inlet vs outlet species balance at the final time
     CR02_heat_sources.png  energy-balance terms (heat sources) vs time
 
-The compound database defaults to ``compound_databaseActual.json``; set
+The compound database defaults to ``compounddatabase/compound_databaseActual.json``
+(at the repo root); set
 ``PHARMAPY_DATABASE`` to use another one.
 """
 
