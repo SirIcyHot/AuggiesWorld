@@ -39,6 +39,10 @@ How the DFT table was turned into reactions
   at 25 C and 60 kJ/mol, i.e. ~6e-3 L/mol/s at 60 C. The basis is a
   half-life of about 5 min at room temperature in excess G; it is an order
   of magnitude guess, not data, and is irreversible here (no K_eq).
+* Water from the water stream hydrolyses G (G + B --> 2 H) and K
+  (K + B --> A + H). Neither is in the DFT table; both use guessed
+  Arrhenius rates (``G_HYDROLYSIS_K_REF``, ``K_HYDROLYSIS_K_REF``,
+  ``HYDROLYSIS_EA``): 5e-5 and 5e-4 L/mol/s at 25 C, 45 kJ/mol.
 * The two K --> NO2+ + AcO- rows are left out: nothing in the network
   consumes NO2+ or AcO-, so they would only drain K.
 * Database MWs that do not balance (left as they are, see ``check_mass``):
@@ -114,6 +118,18 @@ K_FORMATION_K_REF = 5.0e-4  # L/mol/s at K_FORMATION_T_REF
 K_FORMATION_EA = 60.0  # kJ/mol
 K_FORMATION_T_REF = 298.15  # K
 
+# Hydrolysis by the water stream. Also initial guesses, both Arrhenius from
+# 25 C like K formation:
+# * G + B --> 2 H. Uncatalysed G hydrolysis in water runs at ~3e-3 1/s at
+#   25 C in 55 mol/L water, i.e. ~5e-5 L/mol/s, with Ea ~45 kJ/mol. Strong
+#   acid (A) catalyses it, so the real rate here is likely higher.
+# * K + B --> A + H. No data; K is more moisture sensitive than G (nitrate
+#   is the better leaving group), so 10x the G value, same Ea.
+G_HYDROLYSIS_K_REF = 5.0e-5  # L/mol/s at HYDROLYSIS_T_REF
+K_HYDROLYSIS_K_REF = 5.0e-4  # L/mol/s at HYDROLYSIS_T_REF
+HYDROLYSIS_EA = 45.0  # kJ/mol
+HYDROLYSIS_T_REF = 298.15  # K
+
 STEPS = [
     dict(n=1, consumes={"Z1": 1, "K": 1}, produces={"INT1": 1, "H": 1,
          "NO3minus": 1}, catalysts=("I",), ea=48.8,
@@ -175,6 +191,12 @@ STEPS = [
     dict(n=23, consumes={"A": 1, "G": 1}, produces={"K": 1, "H": 1},
          catalysts=(), ea=K_FORMATION_EA, k_ref=K_FORMATION_K_REF,
          t_ref=K_FORMATION_T_REF, note="K formation: guessed k, Ea"),
+    dict(n=24, consumes={"G": 1, "B": 1}, produces={"H": 2},
+         catalysts=(), ea=HYDROLYSIS_EA, k_ref=G_HYDROLYSIS_K_REF,
+         t_ref=HYDROLYSIS_T_REF, note="G hydrolysis: guessed k, Ea"),
+    dict(n=25, consumes={"K": 1, "B": 1}, produces={"A": 1, "H": 1},
+         catalysts=(), ea=HYDROLYSIS_EA, k_ref=K_HYDROLYSIS_K_REF,
+         t_ref=HYDROLYSIS_T_REF, note="K hydrolysis: guessed k, Ea"),
 ]
 
 OPERATING_TEMPERATURE = net.OPERATING_TEMPERATURE
