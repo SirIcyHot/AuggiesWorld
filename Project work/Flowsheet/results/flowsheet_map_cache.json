@@ -1,0 +1,454 @@
+{
+ "streams": {
+  "Feed A": {
+   "temp": 293.15,
+   "liquid": {
+    "A": 0.000218964,
+    "B": 0.0008090360000000001
+   },
+   "solid": {}
+  },
+  "Feed C": {
+   "temp": 293.15,
+   "liquid": {
+    "B": 1.2627000000000011e-05,
+    "C": 0.000194373
+   },
+   "solid": {}
+  },
+  "CR01H out": {
+   "temp": 286.2036838253412,
+   "liquid": {
+    "A": 4.5808621878950326e-05,
+    "B": 0.0008216629999999978,
+    "C": 1.7476035645938015e-06,
+    "F": 7.065164467904601e-05
+   },
+   "solid": {
+    "F": 0.0002871829432925366
+   }
+  },
+  "A push": {
+   "temp": 293.15,
+   "liquid": {
+    "A": 0.0001
+   },
+   "solid": {}
+  },
+  "CR02H out": {
+   "temp": 281.01211155713156,
+   "liquid": {
+    "A": 0.00014431630077883214,
+    "B": 0.0008216629996820228,
+    "C": 8.748225686207509e-08,
+    "F": 2.8433585268544897e-06
+   },
+   "solid": {
+    "F": 0.00035809801479983773
+   }
+  },
+  "F01H cake": {
+   "temp": 281.01211155713156,
+   "liquid": {
+    "A": 9.318399550080019e-06,
+    "B": 5.305418781685821e-05,
+    "C": 5.6486662877594724e-09,
+    "F": 1.8359361121625525e-07
+   },
+   "solid": {
+    "F": 0.00035451703465183933
+   }
+  },
+  "Filtrate 1": {
+   "temp": 281.01211155713156,
+   "liquid": {
+    "A": 0.00013499790122875212,
+    "B": 0.0007686088118651647,
+    "C": 8.183359057431561e-08,
+    "F": 2.6597649156382345e-06
+   },
+   "solid": {
+    "F": 3.580980147998398e-06
+   }
+  },
+  "Feed H": {
+   "temp": 298.15,
+   "liquid": {
+    "H": 0.0005
+   },
+   "solid": {}
+  },
+  "D01H out": {
+   "temp": 281.01,
+   "liquid": {
+    "A": 9.318399553559327e-06,
+    "B": 5.305418783666833e-05,
+    "C": 5.648666289868395e-09,
+    "F": 5.578675206664271e-07,
+    "H": 0.0004999999999931683
+   },
+   "solid": {
+    "F": 0.00035414280898216197
+   }
+  },
+  "R02R makeup": {
+   "temp": 303.15,
+   "liquid": {
+    "A": 0.00357919811398033,
+    "G": 0.007965626552903667,
+    "H": 0.005273508135192479,
+    "I": 0.0013139483306350195
+   },
+   "solid": {}
+  },
+  "R02R out": {
+   "temp": 332.94524151634755,
+   "liquid": {
+    "A": 0.0034984413883042595,
+    "B": 5.305364935252132e-05,
+    "C": 5.6485947813665e-09,
+    "D": 0.00012072995411678885,
+    "E": 0.00022549487720897437,
+    "F": 7.486249196326451e-08,
+    "G": 0.007819673894462151,
+    "H": 0.005859395473399638,
+    "I": 0.0011995410411608305,
+    "J": 2.7347370564464768e-05
+   },
+   "solid": {}
+  },
+  "Feed B": {
+   "temp": 298.15,
+   "liquid": {
+    "B": 0.02
+   },
+   "solid": {}
+  },
+  "D01R out": {
+   "temp": 293.15,
+   "liquid": {
+    "A": 0.0034984255189646784,
+    "B": 0.020053053167944184,
+    "C": 5.648531753242469e-09,
+    "D": 4.6561210621853875e-07,
+    "E": 3.291555946828459e-07,
+    "F": 7.486249196541722e-08,
+    "G": 0.007819638286776186,
+    "H": 0.005859446549780088,
+    "I": 0.0011995359877900041,
+    "J": 1.4374884425520048e-06
+   },
+   "solid": {
+    "D": 0.00012014924731964347,
+    "E": 0.00022499205300412003,
+    "J": 2.5871731400667628e-05
+   }
+  },
+  "F01R cake": {
+   "temp": 293.15,
+   "liquid": {
+    "A": 1.4329220355877101e-05,
+    "B": 8.213541094241393e-05,
+    "D": 1.9071031909074234e-09,
+    "E": 1.3481902135724413e-09,
+    "F": 3.066296932569834e-10,
+    "G": 3.202849953702289e-05,
+    "H": 2.3999739402807162e-05,
+    "I": 4.9131860606066014e-06,
+    "J": 5.887816830941149e-09
+   },
+   "solid": {
+    "D": 0.00011894775484644704,
+    "E": 0.00022274213247407886,
+    "J": 2.5613014086660956e-05
+   }
+  },
+  "Filtrate 2": {
+   "temp": 293.15,
+   "liquid": {
+    "A": 0.003484096298608801,
+    "B": 0.01997091775700177,
+    "C": 5.625395900916725e-09,
+    "D": 4.637050030276313e-07,
+    "E": 3.278074044692735e-07,
+    "F": 7.455586227216023e-08,
+    "G": 0.007787609787239164,
+    "H": 0.00583544681037728,
+    "I": 0.0011946228017293975,
+    "J": 1.4316006257210637e-06
+   },
+   "solid": {
+    "D": 1.2014924731964366e-06,
+    "E": 2.249920530041175e-06,
+    "J": 2.5871731400667174e-07
+   }
+  },
+  "Feed L": {
+   "temp": 298.15,
+   "liquid": {
+    "L": 0.002
+   },
+   "solid": {}
+  },
+  "D02R product": {
+   "temp": 293.15,
+   "liquid": {
+    "A": 1.4329113793125543e-05,
+    "B": 8.213502487094857e-05,
+    "D": 0.00011871326442887532,
+    "E": 0.00022192502215416944,
+    "F": 3.066282564352105e-10,
+    "G": 3.202826100961935e-05,
+    "H": 2.3999753816750166e-05,
+    "I": 4.913150485999734e-06,
+    "J": 2.5617277130164668e-05,
+    "L": 0.0020000017472345745
+   },
+   "solid": {
+    "D": 3.4793710587121903e-07,
+    "E": 9.84445907922978e-07,
+    "J": 3.973699360725999e-08
+   }
+  }
+ },
+ "units": {
+  "CR01H": {
+   "class": {
+    "name": "ContinuousReactiveCrystallizer",
+    "module": "PharmaPy.Reactive_Crystallizers",
+    "subclass": null,
+    "mixins": []
+   },
+   "solids": [
+    "F"
+   ],
+   "reactions": [],
+   "settling": 1.1685785350055347e-12,
+   "k_d": []
+  },
+  "CR02H": {
+   "class": {
+    "name": "ContinuousReactiveCrystallizer",
+    "module": "PharmaPy.Reactive_Crystallizers",
+    "subclass": null,
+    "mixins": [
+     "SlurryFeedMassFlow"
+    ]
+   },
+   "solids": [
+    "F"
+   ],
+   "reactions": [],
+   "settling": 3.896641126675454e-10,
+   "k_d": []
+  },
+  "D01H": {
+   "class": {
+    "name": "ContinuousCrystallizer",
+    "module": "PharmaPy.Crystallizers_Refactored",
+    "subclass": null,
+    "mixins": [
+     "SlurryFeedMassFlow"
+    ]
+   },
+   "solids": [
+    "F"
+   ],
+   "reactions": [],
+   "settling": 1.3080248689912839e-11,
+   "k_d": []
+  },
+  "R02R": {
+   "class": {
+    "name": "ContinuousReactor",
+    "module": "PharmaPy.Reactors_Refactored",
+    "subclass": {
+     "name": "BalanceRecordingReactor",
+     "module": "R02R"
+    },
+    "mixins": []
+   },
+   "solids": [],
+   "reactions": [],
+   "settling": 3.159662804287925e-05,
+   "k_d": []
+  },
+  "D01R": {
+   "class": {
+    "name": "ContinuousCrystallizer",
+    "module": "PharmaPy.Crystallizers_Refactored",
+    "subclass": null,
+    "mixins": []
+   },
+   "solids": [
+    "D",
+    "E",
+    "J"
+   ],
+   "reactions": [],
+   "settling": 5.9107573845879284e-05,
+   "k_d": [
+    50.0
+   ]
+  },
+  "D02R": {
+   "class": {
+    "name": "ContinuousCrystallizer",
+    "module": "PharmaPy.Crystallizers_Refactored",
+    "subclass": null,
+    "mixins": [
+     "SlurryFeedMassFlow"
+    ]
+   },
+   "solids": [
+    "D",
+    "E",
+    "J"
+   ],
+   "reactions": [],
+   "settling": 9.685555339106014e-05,
+   "k_d": [
+    50.0
+   ]
+  }
+ },
+ "links": [
+  {
+   "name": null,
+   "source": "CR01H",
+   "sink": "CR02H",
+   "coupling": "CoupledInlet",
+   "coupling_bases": []
+  },
+  {
+   "name": "F01H",
+   "source": "CR02H",
+   "sink": "D01H",
+   "coupling": "FilterCakeInlet",
+   "coupling_bases": [
+    "AlgebraicInlet",
+    "CoupledInlet"
+   ],
+   "separator": {
+    "class": "ContinuousFilter",
+    "module": "continuous_filter",
+    "solids_loss": 0.01,
+    "cake_moisture": 0.15
+   }
+  },
+  {
+   "name": "D01H->R02R",
+   "source": "D01H",
+   "sink": "R02R",
+   "coupling": "DissolvedSlurryInlet",
+   "coupling_bases": [
+    "AlgebraicInlet",
+    "CoupledInlet"
+   ]
+  },
+  {
+   "name": null,
+   "source": "R02R",
+   "sink": "D01R",
+   "coupling": "CoupledInlet",
+   "coupling_bases": []
+  },
+  {
+   "name": "F01R",
+   "source": "D01R",
+   "sink": "D02R",
+   "coupling": "FilterCakeInlet",
+   "coupling_bases": [
+    "AlgebraicInlet",
+    "CoupledInlet"
+   ],
+   "separator": {
+    "class": "ContinuousFilter",
+    "module": "continuous_filter",
+    "solids_loss": 0.01,
+    "cake_moisture": 0.3
+   }
+  }
+ ],
+ "balances": {
+  "CR01H": [
+   [
+    "Feed A",
+    "Feed C"
+   ],
+   [
+    "CR01H out"
+   ]
+  ],
+  "CR02H": [
+   [
+    "CR01H out",
+    "A push"
+   ],
+   [
+    "CR02H out"
+   ]
+  ],
+  "F01H": [
+   [
+    "CR02H out"
+   ],
+   [
+    "F01H cake",
+    "Filtrate 1"
+   ]
+  ],
+  "D01H": [
+   [
+    "F01H cake",
+    "Feed H"
+   ],
+   [
+    "D01H out"
+   ]
+  ],
+  "R02R": [
+   [
+    "D01H out",
+    "R02R makeup"
+   ],
+   [
+    "R02R out"
+   ]
+  ],
+  "D01R": [
+   [
+    "R02R out",
+    "Feed B"
+   ],
+   [
+    "D01R out"
+   ]
+  ],
+  "F01R": [
+   [
+    "D01R out"
+   ],
+   [
+    "F01R cake",
+    "Filtrate 2"
+   ]
+  ],
+  "D02R": [
+   [
+    "F01R cake",
+    "Feed L"
+   ],
+   [
+    "D02R product"
+   ]
+  ]
+ },
+ "system": {
+  "class": "ConcurrentVessel",
+  "module": "PharmaPy.ConcurrentVessel",
+  "states": 2784,
+  "integrator": "BlockPreconditionedCVode",
+  "time_h": 16.0
+ }
+}

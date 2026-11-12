@@ -1,33 +1,28 @@
-"""F01R: continuous filter on the R02R product stream.
+"""F01R: continuous filter on the D01R slurry.
 
 The flowsheet is::
 
-    FEED_A --+
-             +--> R02R --(A, C, D, E, G, I, J in H)--> F01 --> cake
-    FEED_B --+                                            \\--> filtrate
+                       FEED_B --+
+                                |
+    R02R --(D, E, J in H)--> D01R --(D, E, J crystals)--> F01 --> cake
+                                                             \\--> filtrate
 
-``R02R`` is the three-reaction jacketed CSTR, run as-is from
-``Project work/R02R.py``. Its outlet is taken at the final time, so the
-filter sees exactly R02R's outlet mass flow, composition and temperature.
+``D01R`` is the antisolvent crystallizer, run as-is from
+``Project work/D01R/D01R.py`` (which itself solves R02R for its feed). Its
+outlet is taken at the final, steady time, so the filter sees exactly
+D01R's discharge: liquid, temperature and the real D, E and J crystals.
 
-That outlet is all liquid, and a filter needs crystals. D, E and J are the
-products that crystallize, so each is split here into dissolved and
-crystalline. ``SOLID_FRACTION`` sets the split per species, as either:
+D01R holds one solid phase per species. The filter carries one solid, so
+``d01r_outlet`` merges the three into one mixed population on D01R's size
+grid: number flows add cell by cell, the composition is each species'
+share of the crystal mass, and the density is total mass / total crystal
+volume. Mass by species is exact, because the filter treats every crystal
+alike; D02R splits the population back into D, E and J by volume.
 
-- a number in [0, 1]: that fraction of the species is crystalline, or
-- a solubility function ``solubility(temp, conc) -> mol/L of solution``,
-  with ``conc`` the liquid's molar concentrations in database order: just
-  enough stays dissolved to saturate the liquid left behind (equilibrium).
-
-There is no solubility data for D, E or J yet, so the defaults are numbers.
-
-The filter carries one solid phase, so D, E and J crystals travel as one
-mixed population: a single size distribution, with the composition of the
-mix and its density (total mass / total crystal volume). Mass by species is
-exact regardless, because the filter treats every crystal alike.
-
-The split conserves mass, so the slurry entering F01 carries R02R's outlet
-mass flow exactly.
+D01R's three slurry volumes are not its vessel volume (see
+``D01R.slurry_volumes``), so the outlet is split into liquid and crystal
+flows the same way: Q_L = Q / (1 + sum_k phi_k / (1 - phi_k)) and
+N_k = n_k Q_L / (1 - phi_k).
 
 ``F01`` is ``ContinuousFilter`` from ``continuous_filter.py``. Two settings
 govern it: ``SOLIDS_LOSS`` (fraction of crystals passing into the filtrate)
@@ -44,15 +39,13 @@ set ``PHARMAPY_DATABASE`` to use another one.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
 import numpy as np
-from scipy.optimize import brentq
 
+from PharmaPy.DataClasses import PhaseRef
 from PharmaPy.Mechanisms import OneDFVMMechanism
-from PharmaPy.Streams_Refactored import LiquidStream
 
 # ---------------------------------------------------------------- paths
 # Built from this file's location, so they work whichever folder Python is
@@ -60,48 +53,33 @@ from PharmaPy.Streams_Refactored import LiquidStream
 HERE = Path(__file__).resolve().parent          # Project work/F01R
 ROOT = HERE.parents[1]                          # AuggiesWorld
 
+D01R_DIR = ROOT / "Project work" / "D01R"
 R02R_DIR = ROOT / "Project work" / "R02R"
 DB_PATH = ROOT / "compounddatabase" / "compound_databaseActual.json"
 FILTER_DIR = ROOT / "CustomUnitOps"
 
-sys.path[:0] = [str(FILTER_DIR), str(R02R_DIR)]
+sys.path[:0] = [str(FILTER_DIR), str(D01R_DIR), str(R02R_DIR)]
 
-from continuous_filter import (  # noqa: E402
-    ContinuousFilter, SlurryFlow, flow_from_vessel)
-import R02R  # noqa: E402
+from continuous_filter import ContinuousFilter, SlurryFlow  # noqa: E402
+import D01R  # noqa: E402
 
 DEFAULT_DATABASE_PATH = DB_PATH
 
 # ---------------------------------------------------------------- settings
-CRYSTAL_SPECIES = ("D", "E", "J")
+CRYSTAL_SPECIES = D01R.CRYSTAL_SPECIES  # ("D", "E", "J")
 
-# None: the filter runs at R02R's outlet temperature.
-FILTER_TEMPERATURE = None  # K
+# The crystals arrive from D01R, so they keep D01R's size grid.
+CRYSTAL_SIZE_GRID = D01R.CRYSTAL_SIZE_GRID  # um
+CRYSTAL_KV = D01R.CRYSTAL_KV
 
-# Per crystallizing species: a fraction in [0, 1] that is crystalline, or a
-# solubility function (temp, conc) -> mol/L for an equilibrium split.
-# Placeholders: complete crystallization until solubility data exist.
-SOLID_FRACTION = {
-    "D": 1.0,
-    "E": 1.0,
-    "J": 1.0,
-}
-
-# Crystal size distribution, by mass, for the mixed D/E/J population. The
-# grid matches CR01H's, so both filters hand on crystals on the same grid.
-CRYSTAL_SIZE_GRID = np.arange(1.0, 201.0)  # um
-CRYSTAL_KV = 1.0
+# Only for ``crystal_number_flow``: a Gaussian stand-in used to build stream
+# templates before any crystals exist (e.g. by the coupled flowsheet).
 CSD_MEAN = 80.0  # um
 CSD_STD = 20.0  # um
 
 SOLIDS_LOSS = 0.01  # fraction of crystals passing into the filtrate
 CAKE_MOISTURE = 0.30  # kg liquid / kg wet cake (LOD)
 MOISTURE_BASIS = "wet"
-
-# Equilibrium with more than one solubility function is solved one species
-# at a time, repeated until no dissolved flow moves by more than this.
-EQUILIBRIUM_TOL = 1e-12  # relative
-EQUILIBRIUM_MAX_SWEEPS = 100
 
 
 # ---------------------------------------------------------------- builders
@@ -124,85 +102,11 @@ def mixed_density(solid_mass: dict[str, float],
     return total / volume
 
 
-def r02r_outlet(database_path: Path | str = DEFAULT_DATABASE_PATH):
-    """Run R02R and return its outlet at the final time.
-
-    Returns
-    -------
-    reactor : ContinuousReactor
-        The solved R02R.
-    outlet : SlurryFlow
-        Its product stream, liquid only.
-    """
-    reactor = R02R.run_reactor(database_path)
-    return reactor, flow_from_vessel(reactor)
-
-
-def _liquid_stream(flow: SlurryFlow, liquid_mass_j: np.ndarray, temp: float):
-    total = float(np.sum(liquid_mass_j))
-    return LiquidStream(flow.path_thermo, mass_flow=total,
-                        mass_frac=liquid_mass_j / total, temp=temp,
-                        name_solv=flow.name_solv, verbose=False)
-
-
-def dissolved_flows(flow: SlurryFlow, temp: float,
-                    settings: dict = SOLID_FRACTION) -> np.ndarray:
-    """Liquid mass flows [kg/s] once D, E and J have crystallized.
-
-    Species given a fraction are set directly. Species given a solubility
-    function are solved for: conc_i(m_i) = solubility_i(T, conc), where m_i
-    is what stays dissolved. Crystallizing any species shrinks the liquid
-    and so concentrates all the others, which couples the equations; they
-    are solved one species at a time, sweeping until nothing moves.
-    """
-    names = list(flow.name_species)
-    mass_j = flow.liquid_mass_j.copy()
-
-    unknown = set(settings) - set(CRYSTAL_SPECIES)
-    if unknown:
-        raise KeyError(f"SOLID_FRACTION names non-crystallizing species: "
-                       f"{', '.join(sorted(unknown))}")
-
-    equilibrium = []
-    for name in CRYSTAL_SPECIES:
-        setting = settings.get(name, 0.0)
-        j = names.index(name)
-        if callable(setting):
-            equilibrium.append((j, setting))
-        else:
-            if not 0.0 <= setting <= 1.0:
-                raise ValueError(
-                    f"SOLID_FRACTION[{name!r}] must lie in [0, 1].")
-            mass_j[j] = flow.liquid_mass_j[j] * (1.0 - setting)
-
-    def excess(j, solubility, dissolved):
-        trial = mass_j.copy()
-        trial[j] = dissolved
-        conc = np.asarray(_liquid_stream(flow, trial, temp).mole_conc,
-                          dtype=float)
-        return conc[j] - float(solubility(temp, conc))
-
-    for _ in range(EQUILIBRIUM_MAX_SWEEPS):
-        moved = 0.0
-        for j, solubility in equilibrium:
-            total = flow.liquid_mass_j[j]
-            if excess(j, solubility, total) <= 0:
-                new = total  # undersaturated: none of it crystallizes
-            elif excess(j, solubility, 0.0) >= 0:
-                new = 0.0  # zero solubility here: all of it crystallizes
-            else:
-                new = brentq(lambda m: excess(j, solubility, m), 0.0, total,
-                             xtol=1e-16, rtol=1e-12)
-            moved = max(moved, abs(new - mass_j[j]) / max(total, 1e-300))
-            mass_j[j] = new
-        if moved <= EQUILIBRIUM_TOL:
-            return mass_j
-
-    raise RuntimeError("The equilibrium split did not converge.")
-
-
 def crystal_number_flow(solid_mass_flow: float, density: float) -> np.ndarray:
-    """Gaussian crystal number flow [#/(um s)] carrying solid_mass_flow."""
+    """Gaussian crystal number flow [#/(um s)] carrying solid_mass_flow.
+
+    A template only; the filter itself gets D01R's real crystals.
+    """
     grid = np.asarray(CRYSTAL_SIZE_GRID, dtype=float)
     # The FVM cell widths, so this mass matches the one the filter and any
     # downstream vessel compute from the same distribution.
@@ -218,43 +122,70 @@ def crystal_number_flow(solid_mass_flow: float, density: float) -> np.ndarray:
     return number_shape * solid_mass_flow / mass_per_shape
 
 
-def crystallize(flow: SlurryFlow, temp: float | None = None,
-                settings: dict = SOLID_FRACTION) -> SlurryFlow:
-    """Split D, E and J in a liquid flow into dissolved and crystalline."""
-    if temp is None:
-        temp = flow.temp
+def outlet_flow(tank, time_index: int = -1) -> SlurryFlow:
+    """D01R's discharge at one saved time, with D, E, J merged into one solid.
 
-    names = list(flow.name_species)
-    liquid_mass_j = dissolved_flows(flow, temp, settings)
-    solid_mass_j = flow.liquid_mass_j - liquid_mass_j
+    Returns a SlurryFlow on D01R's grid: liquid mass flows [kg/s] and a
+    crystal number flow [#/(um s)] whose composition and mixed density
+    carry each species' crystal mass exactly.
+    """
+    res = tank.result
+    outputs = tank.outputs
+    liquid = tank.Phases.get_phase_from_ref(PhaseRef("liquid", 0))
+    names = list(liquid.name_species)
 
-    solid_mass = {name: float(solid_mass_j[names.index(name)])
-                  for name in CRYSTAL_SPECIES}
-    total_solid = sum(solid_mass.values())
+    vol_flow = max(float(np.ravel(outputs["vol_flow"])[time_index]), 0.0)
+    temp = (float(np.ravel(outputs["temp"])[time_index]) if "temp" in outputs
+            else float(liquid.temp))
+    conc = np.maximum(np.atleast_2d(outputs["mole_conc"])[time_index], 0.0)
 
+    distribs, phis, masses, densities = [], [], {}, {}
+    for k, species in enumerate(CRYSTAL_SPECIES):
+        pbm = D01R.population_balance(tank, k)
+        n = np.maximum(np.atleast_2d(getattr(res, f"distrib_solid{k}"))
+                       [time_index], 0.0)
+        distribs.append(n)
+        phis.append(float(n @ D01R.crystal_weight(tank, k)) / pbm.density)
+        densities[species] = float(pbm.density)
+
+    liquid_flow = vol_flow / (1.0 + sum(p / (1.0 - p) for p in phis))
+    crystal_flow = np.zeros(len(CRYSTAL_SIZE_GRID))
+    for k, species in enumerate(CRYSTAL_SPECIES):
+        number = distribs[k] * liquid_flow / (1.0 - phis[k])
+        crystal_flow += number
+        masses[species] = float(number @ D01R.crystal_weight(tank, k))
+
+    total_solid = sum(masses.values())
     solid_mass_frac = np.zeros(len(names))
-    for name, mass in solid_mass.items():
-        solid_mass_frac[names.index(name)] = (
+    for species, mass in masses.items():
+        solid_mass_frac[names.index(species)] = (
             mass / total_solid if total_solid > 0
             else 1.0 / len(CRYSTAL_SPECIES))
 
-    density = mixed_density(solid_mass,
-                            solid_densities(Path(flow.path_thermo)))
-
     return SlurryFlow(
-        path_thermo=flow.path_thermo,
+        path_thermo=liquid.path_thermo,
         name_species=names,
         temp=temp,
-        liquid_mass_j=liquid_mass_j,
-        name_solv=flow.name_solv,
+        liquid_mass_j=conc * np.asarray(liquid.mw) * liquid_flow,
+        name_solv=liquid.name_solv,
         x_grid=np.asarray(CRYSTAL_SIZE_GRID, dtype=float),
-        crystal_flow=crystal_number_flow(total_solid, density),
+        crystal_flow=crystal_flow,
         solid_mass_frac=solid_mass_frac,
-        solid_density=density,
+        solid_density=mixed_density(masses, densities),
         kv=CRYSTAL_KV,
         target_components=list(CRYSTAL_SPECIES),
-        solvent_name=flow.name_solv,
+        solvent_name=liquid.name_solv,
     )
+
+
+def d01r_outlet(database_path: Path | str = DEFAULT_DATABASE_PATH):
+    """Run R02R -> D01R and return D01R and its discharge at the final time.
+
+    ``database_path`` is accepted for symmetry with the other scripts;
+    D01R reads its own (``D01R.DB_PATH``).
+    """
+    _, tank = D01R.run_flowsheet()
+    return tank, outlet_flow(tank)
 
 
 def build_filter() -> ContinuousFilter:
@@ -264,15 +195,14 @@ def build_filter() -> ContinuousFilter:
 
 
 def run_flowsheet(database_path: Path | str = DEFAULT_DATABASE_PATH):
-    """R02R -> F01. Returns (reactor, R02R outlet, filter feed, filter)."""
-    reactor, outlet = r02r_outlet(database_path)
-    feed = crystallize(outlet, temp=FILTER_TEMPERATURE)
+    """R02R -> D01R -> F01. Returns (D01R, D01R outlet, filter)."""
+    tank, outlet = d01r_outlet(database_path)
 
     filt = build_filter()
-    filt.Inlets = [feed]
+    filt.Inlets = [outlet]
     filt.solve()
 
-    return reactor, outlet, feed, filt
+    return tank, outlet, filt
 
 
 # ---------------------------------------------------------------- reporting
@@ -283,22 +213,21 @@ def crystal_mass_by_species(flow: SlurryFlow) -> dict[str, float]:
             for name in CRYSTAL_SPECIES}
 
 
-def species_table(outlet: SlurryFlow, filt: ContinuousFilter) -> list[list]:
-    """Rows of [component, R02R out, F01 feed, cake, filtrate] in kg/s."""
+def species_table(filt: ContinuousFilter) -> list[list]:
+    """Rows of [component, F01 feed (D01R out), cake, filtrate] in kg/s."""
     streams = [filt.feed, filt.cake_flow, filt.filtrate_flow]
     rows = []
 
-    for j, name in enumerate(outlet.name_species):
-        values = [outlet.liquid_mass_j[j]] + [s.liquid_mass_j[j]
-                                              for s in streams]
+    for j, name in enumerate(filt.feed.name_species):
+        values = [s.liquid_mass_j[j] for s in streams]
         if max(abs(v) for v in values) > 1e-12:
             rows.append([f"{name} (dissolved)"] + values)
 
     crystals = [crystal_mass_by_species(s) for s in streams]
     for name in CRYSTAL_SPECIES:
-        rows.append([f"{name} (crystals)", 0.0] + [c[name] for c in crystals])
+        rows.append([f"{name} (crystals)"] + [c[name] for c in crystals])
 
-    rows.append(["Total", outlet.liquid_mass_flow]
+    rows.append(["Total"]
                 + [s.liquid_mass_flow + s.solid_mass_flow for s in streams])
     return rows
 
@@ -314,25 +243,23 @@ def crystalline_fraction(feed: SlurryFlow) -> dict[str, float]:
     return out
 
 
-def print_report(outlet: SlurryFlow, filt: ContinuousFilter):
+def print_report(filt: ContinuousFilter):
     feed = filt.feed
     summary = filt.summary()
     feed_total = feed.liquid_mass_flow + feed.solid_mass_flow
     fractions = ", ".join(f"{name} {value:.1%}"
                           for name, value in crystalline_fraction(feed).items())
 
-    print(f"R02R outlet: {outlet.liquid_mass_flow:.6g} kg/s at "
-          f"{outlet.temp:.2f} K")
-    print(f"F01 feed:    {feed_total:.6g} kg/s at {feed.temp:.2f} K; "
+    print(f"D01R outlet: {feed_total:.6g} kg/s at {feed.temp:.2f} K; "
           f"crystalline: {fractions}")
     print(f"Crystals:    {feed.solid_density:.1f} kg/m3 mixed density")
     print(f"Settings:    solids loss {SOLIDS_LOSS:g}, cake moisture "
           f"{CAKE_MOISTURE:g} ({MOISTURE_BASIS} basis)\n")
 
-    header = ["component", "R02R out", "F01 feed", "cake", "filtrate"]
+    header = ["component", "D01R out", "cake", "filtrate"]
     print(f"  {header[0]:<16}" + "".join(f"{h:>12}" for h in header[1:])
           + "   [g/s]")
-    for row in species_table(outlet, filt):
+    for row in species_table(filt):
         print(f"  {row[0]:<16}" + "".join(f"{v * 1e3:>12.5f}"
                                           for v in row[1:]))
 
@@ -342,7 +269,5 @@ def print_report(outlet: SlurryFlow, filt: ContinuousFilter):
 
 
 if __name__ == "__main__":
-    database = Path(os.environ.get("PHARMAPY_DATABASE",
-                                   DEFAULT_DATABASE_PATH))
-    _, r02r_out, _, f02 = run_flowsheet(database)
-    print_report(r02r_out, f02)
+    _, _, f01 = run_flowsheet()
+    print_report(f01)

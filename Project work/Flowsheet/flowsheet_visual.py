@@ -2,7 +2,12 @@
 
 The process, as ``Flowsheet.py`` couples it in one ConcurrentVessel::
 
-    CR01H -> CR02H -> F01H -> D01H -> R02R -> D01R -> F01R -> D02R
+    CR01H -> CR02H -> F01H -> W02H -> D01H -> R02R -> D01R -> F01R -> W02R
+          -> D03R
+
+Each wash block is two unit ops, drawn as one block: W02H is the D02H
+dissolver (H) and the F02H filter; W02R is the D02R dissolver (B) and the
+F02R filter.
 
 This script solves ``Flowsheet.build_flowsheet`` and draws what it finds.
 Stream contents come from ``Flowsheet.stream_table`` at the final time. Each
@@ -28,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -44,16 +50,24 @@ FLOW_FLOOR = 1e-10
 
 # ---------------------------------------------------------------- solving
 def describe_class(unit) -> dict:
-    """A vessel's class. ``with_true_slurry_feed`` wraps some in a same-named
-    subclass, so report the class being wrapped and the mixin separately."""
-    cls = type(unit)
-    mro = cls.__mro__
-    base = next((c for c in mro
-                 if c.__name__ == cls.__name__ and c.__module__ != "Flowsheet"),
-                cls)
+    """A vessel's PharmaPy class, plus any project subclass on top of it.
+
+    ``name`` is the first PharmaPy class in the MRO, i.e. what the unit is at
+    heart (R02R's BalanceRecordingReactor is reported as ContinuousReactor).
+    ``subclass`` is a project class between the two, if any, and ``mixins``
+    the Flowsheet mixins that ``with_true_slurry_feed`` adds.
+    """
+    mro = type(unit).__mro__
+    base = next((c for c in mro if c.__module__.startswith("PharmaPy")),
+                type(unit))
+    own = [c for c in mro[:mro.index(base)] if c.__module__ != "Flowsheet"]
     mixins = [c.__name__ for c in mro
-              if c.__module__ == "Flowsheet" and c.__name__ != cls.__name__]
-    return {"name": base.__name__, "module": base.__module__, "mixins": mixins}
+              if c.__module__ == "Flowsheet" and c.__name__ != base.__name__
+              and c not in own]
+    return {"name": base.__name__, "module": base.__module__,
+            "subclass": ({"name": own[0].__name__, "module": own[0].__module__}
+                         if own else None),
+            "mixins": [m for m in mixins if m != type(unit).__name__]}
 
 
 def describe_phases(unit) -> list[str]:
@@ -98,6 +112,10 @@ def solve_flowsheet() -> dict:
                       if abs(float(v)) > FLOW_FLOOR},
         }
 
+    # Dissolution rate constants k_d [um/s] of the units that dissolve.
+    dissolution = {"D01R": fs.D01R.DISSOLUTION, "D02R": fs.D02R.DISSOLUTION,
+                   "D03R": fs.D03R.DISSOLUTION}
+
     units = {}
     for name, unit in cv.members.items():
         kinetics = getattr(unit, "RxnKinetics", None)
@@ -106,6 +124,8 @@ def solve_flowsheet() -> dict:
             "solids": describe_phases(unit),
             "reactions": list(getattr(kinetics, "rxn_list", None) or []),
             "settling": float(fs.settling(unit, fs.UNIT_CRYSTALS[name])),
+            "k_d": sorted({float(v[0]) for v in dissolution.get(name, {})
+                           .values()}),
         }
 
     return {
@@ -124,8 +144,11 @@ def solve_flowsheet() -> dict:
 
 def load_or_solve(force: bool) -> dict:
     if CACHE_PATH.exists() and not force:
-        print(f"Using cached solve: {CACHE_PATH} (--solve to refresh)")
-        return json.loads(CACHE_PATH.read_text())
+        data = json.loads(CACHE_PATH.read_text())
+        if "W02H cake" in data["streams"]:
+            print(f"Using cached solve: {CACHE_PATH} (--solve to refresh)")
+            return data
+        print("The cached solve predates the wash blocks; solving again.")
     data = solve_flowsheet()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_PATH.write_text(json.dumps(data, indent=1))
@@ -163,6 +186,80 @@ def percent_list(values: dict) -> str:
     return "  ".join(f"{name} {value:.0%}" for name, value in values.items())
 
 
+# Wash block -> (cake in, wash cake out, filtrate out).
+WASH_STREAMS = {"W02H": ("F01H cake", "W02H cake", "W02H filtrate"),
+                "W02R": ("F01R cake", "W02R cake", "W02R filtrate")}
+
+
+def wash_dissolved(streams: dict, block: str) -> float:
+    """Share of the crystals fed to a wash block that leave it dissolved."""
+    fed, cake, filtrate = (streams[s] for s in WASH_STREAMS[block])
+    crystals_in = sum(fed["solid"].values())
+    crystals_out = sum(cake["solid"].values()) + sum(filtrate["solid"].values())
+    return 1.0 - crystals_out / crystals_in if crystals_in > 0 else 0.0
+
+
+# What the process is meant to do, checked against the solve.
+CR01H_CRYSTAL_LIMIT = 1e-3  # share of CR01H's F that may leave as crystals
+D03R_DISSOLVED_TARGET = 0.95  # "almost completely" dissolved
+WASH_DISSOLVED_LIMIT = 0.10  # a wash should dissolve very little
+SETTLED_LIMIT = 0.01  # change over the last 10 % of the run
+
+# Where each vessel is drawn: the washes' dissolvers sit inside their block.
+DRAWN_IN = {"D02H": "W02H", "D02R": "W02R"}
+
+ASSUMPTIONS = [
+    "A1  The solid F that D01H passes on as slurry dissolves quickly and "
+    "completely in R02R's liquid, then reacts. R02R has no solid phase, so "
+    "the D01H -> R02R link turns crystal mass into dissolved F, conserving "
+    "mass.",
+    "A2  F01H, F02H, F01R and F02R are steady-state splits evaluated inside "
+    "the links (ContinuousFilter settings, no holdup), not vessels. F02H "
+    "and F02R use the settings of F01H and F01R.",
+    "A3  The solubility S0 of D02H and D01H is fixed at CR02H's design "
+    "mother liquor (Flowsheet.CAKE_LIQUID_DESIGN).",
+    "A4  R02R's outlet is all liquid. D, E and J would start to come out of "
+    "solution in R02R, but the model assumes no solids form there; all "
+    "crystallization happens in D01R.",
+    "A5  W02H and W02R are each two unit ops, a dissolver vessel (D02H, "
+    "D02R) and a filter link (F02H, F02R), drawn as one block.",
+]
+
+
+def find_warnings(data: dict) -> dict[str, str]:
+    """Unit -> warning, where the solve departs from the intended process."""
+    streams = data["streams"]
+    out = {}
+
+    cr01 = streams["CR01H out"]
+    crystals = cr01["solid"].get("F", 0.0)
+    f_total = crystals + cr01["liquid"].get("F", 0.0)
+    if f_total > 0 and crystals / f_total > CR01H_CRYSTAL_LIMIT:
+        out["CR01H"] = (f"CR01H crystallizes {crystals * 1e3:.3g} g/s of F "
+                        f"({crystals / f_total:.0%} of its F); it should "
+                        "stay liquid.")
+
+    short = {n: v for n, v in dissolved_share(streams["D03R product"]).items()
+             if v < D03R_DISSOLVED_TARGET}
+    if short:
+        out["D03R"] = ("D03R leaves " + percent_list(short) + " dissolved; L "
+                       "should dissolve D, E, J almost completely (retune "
+                       "SOLVENT_K_L or L_FLOW).")
+
+    for block in WASH_STREAMS:
+        share = wash_dissolved(streams, block)
+        if share > WASH_DISSOLVED_LIMIT:
+            out[block] = (f"{block} dissolves {share:.0%} of the crystals fed "
+                          "to it; a wash should dissolve very little.")
+
+    for name, unit in data["units"].items():
+        where = DRAWN_IN.get(name, name)
+        if unit["settling"] > SETTLED_LIMIT and where not in out:
+            out[where] = (f"{name} not at steady state: still moving "
+                          f"{unit['settling']:.1%} over the last 10 % of the run.")
+    return out
+
+
 def print_summary(data: dict):
     system = data["system"]
     print(f"{system['class']} ({system['module']}): {system['states']} states, "
@@ -170,8 +267,10 @@ def print_summary(data: dict):
     print(f"{'unit':<7}{'class':<33}{'module':<36}settling")
     for name, unit in data["units"].items():
         cls = unit["class"]
+        sub = cls.get("subclass")
         print(f"{name:<7}{cls['name']:<33}{cls['module']:<36}"
-              f"{unit['settling']:.2%}")
+              f"{unit['settling']:.2%}"
+              + (f"   (as {sub['module']}.{sub['name']})" if sub else ""))
     print("\nLinks:")
     for link in data["links"]:
         separator = link.get("separator", {}).get("class", "")
@@ -185,8 +284,15 @@ def print_summary(data: dict):
         print(f"  {unit:<7}{mass_in * 1e3:>9.4f} g/s in  "
               f"{mass_out * 1e3:>9.4f} g/s out  "
               f"{(mass_in - mass_out) / mass_in:>7.2%}")
-    print("\nDissolved share in the D02R product: "
-          + percent_list(dissolved_share(streams["D02R product"])))
+    for block in WASH_STREAMS:
+        print(f"{block} dissolves {wash_dissolved(streams, block):.2%} of "
+              "the crystals fed to it")
+    print("\nDissolved share in the D03R product: "
+          + percent_list(dissolved_share(streams["D03R product"])))
+    warnings = find_warnings(data)
+    print("\nWarnings:" if warnings else "\nWarnings: none")
+    for text in warnings.values():
+        print("  " + text)
 
 
 # ---------------------------------------------------------------- drawing
@@ -199,24 +305,45 @@ TEXT_MUTED = "#52514e"
 GRID_COLOR = "#e5e4e0"
 BOX_FILL = "#f7f6f3"
 SURFACE = "#ffffff"
-NOTE_FILL = "#fff4d6"
+NOTE_FILL = "#fff4d6"  # assumptions
 NOTE_EDGE = "#c98a00"
+WARN_FILL = "#fdeceb"  # warnings: always with the word WARNING, never colour alone
+WARN_EDGE = "#c62f2f"
+
+# Trebuchet MS for text (humanist, ships with Windows, true bold, lining
+# figures with a distinct 0/O and 1/l, so F01H reads as F01H) and Consolas
+# for code names. Each is a fallback chain: glyphs a face lacks and machines
+# without it fall through to DejaVu.
+FONT = ["Trebuchet MS", "DejaVu Sans"]
+MONO = ["Consolas", "DejaVu Sans Mono"]
+
+
+def use_fonts():
+    import matplotlib as mpl
+    mpl.rcParams["font.family"] = FONT
+    mpl.rcParams["font.monospace"] = MONO
 
 BOX_W, BOX_H = 3.2, 2.7
 CARD_W, CARD_H = 3.0, 1.22
 ROW_1, ROW_2 = 8.9, 2.7  # y of each row's centre
-COLUMNS = (3.5, 10.2, 16.6, 22.9)  # x of each column's centre
+COLUMNS = (3.5, 10.0, 16.5, 23.0, 29.5)  # x of each column's centre
+X_MAX = 32.0
 
 ROLES = {
     "CR01H": "reactive crystallizer",
     "CR02H": "reactive crystallizer, A push",
     "F01H": "filter",
+    "W02H": "wash: D02H dissolver (H) + F02H filter",
     "D01H": "dissolver (H)",
-    "R02R": "jacketed CSTR",
+    "R02R": "jacketed CSTR, liquid only",
     "D01R": "antisolvent crystallizer (B)",
     "F01R": "filter",
-    "D02R": "dissolver (L)",
+    "W02R": "wash: D02R dissolver (B) + F02R filter",
+    "D03R": "dissolver (L)",
 }
+
+# Wash block -> (its dissolver vessel, its filter link).
+WASH_BLOCKS = {"W02H": ("D02H", "F02H"), "W02R": ("D02R", "F02R")}
 
 
 def pipe(ax, points, phase, head=True):
@@ -325,16 +452,28 @@ def vessel_box(ax, data, name, x, y, extra=()):
     unit = data["units"][name]
     cls = unit["class"]
     class_lines = [(cls["name"], "class"), (cls["module"], "module")]
+    if cls.get("subclass"):
+        sub = cls["subclass"]
+        class_lines.append((f"run as {sub['module']}.{sub['name']}", "module"))
     if cls["mixins"]:
         class_lines.append(("+ " + ", ".join(cls["mixins"]), "module"))
     solids = unit["solids"]
-    facts = ["holds: liquid" + (" + solid " + ", ".join(solids) if solids
-                                else " only")]
+    if len(solids) > 1:
+        holds = (f"holds: liquid + {len(solids)} solid phases "
+                 + " | ".join(solids))
+    elif solids:
+        holds = f"holds: liquid + solid {solids[0]}"
+    else:
+        holds = "holds: liquid only"
+    facts = [holds]
     reactions = unit["reactions"]
     if len(reactions) > 1:
         facts.append("F + A + I + G → D / E / J + H")
     elif reactions:
         facts.append(reactions[0].replace("-->", "→"))
+    if unit.get("k_d"):
+        facts.append("dissolution k_d "
+                     + ", ".join(f"{k:g}" for k in unit["k_d"]) + " µm/s")
     facts += list(extra)
     box(ax, name, x, y, class_lines, facts)
 
@@ -354,11 +493,38 @@ def filter_box(ax, data, name, x, y):
     box(ax, name, x, y, class_lines, facts, dashed=True)
 
 
-def note(ax, x, y, text, **style):
+def wash_box(ax, data, block, x, y):
+    """A wash block: its dissolver vessel and its filter link, as one box."""
+    vessel, filter_name = WASH_BLOCKS[block]
+    unit = data["units"][vessel]
+    cls = unit["class"]
+    link = next(item for item in data["links"] if item["name"] == filter_name)
+    separator = link["separator"]
+    class_lines = [(f"{vessel} {cls['name']}", "class"),
+                   (cls["module"], "module")]
+    if cls["mixins"]:
+        class_lines.append(("+ " + ", ".join(cls["mixins"]), "module"))
+    class_lines += [
+        (f"{filter_name} {link['coupling']}", "class"),
+        (f"link: solids loss {separator['solids_loss']:.0%}, "
+         f"cake LOD {separator['cake_moisture']:.0%}", "module"),
+    ]
+    solids = unit["solids"]
+    holds = (f"{vessel} holds liquid + solid " + " | ".join(solids)
+             if solids else f"{vessel} holds liquid only")
+    facts = [holds,
+             f"product: dissolves {wash_dissolved(data['streams'], block):.1%}"
+             " of crystals fed"]
+    box(ax, block, x, y, class_lines, facts)
+
+
+def note(ax, x, y, text, warn=False, **style):
     style = {"fontsize": 8.8, "color": TEXT_PRIMARY, "va": "center",
              "ha": "center", "zorder": 6,
-             "bbox": dict(fc=NOTE_FILL, ec=NOTE_EDGE, lw=0.8,
-                          boxstyle="round,pad=0.25"), **style}
+             "bbox": dict(fc=WARN_FILL if warn else NOTE_FILL,
+                          ec=WARN_EDGE if warn else NOTE_EDGE,
+                          lw=1.2 if warn else 0.8,
+                          boxstyle="round,pad=0.3"), **style}
     ax.text(x, y, text, **style)
 
 
@@ -370,17 +536,17 @@ def draw_map(data: dict):
 
     streams = data["streams"]
     system = data["system"]
-    fig, ax = plt.subplots(figsize=(22, 12.2))
+    warnings = find_warnings(data)
+    fig, ax = plt.subplots(figsize=(27.5, 15.5))
     fig.patch.set_facecolor(SURFACE)
-    ax.set_xlim(0, 25)
-    ax.set_ylim(-0.75, 13.1)
+    ax.set_xlim(0, X_MAX)
+    ax.set_ylim(-4.5, 13.1)
     ax.axis("off")
 
-    c1, c2, c3, c4 = COLUMNS
+    c1, c2, c3, c4, c5 = COLUMNS
     half_w, half_h = BOX_W / 2, BOX_H / 2
     top_1, bottom_1 = ROW_1 + half_h, ROW_1 - half_h
     top_2, bottom_2 = ROW_2 + half_h, ROW_2 - half_h
-    card_side = c4 - CARD_W / 2 + 0.3  # x of the cards over the last column
     top_cards, low_cards = 11.1, -0.35
     above_row_1, above_row_2 = ROW_1 + 0.2, ROW_2 + 0.2
     mid_cards, feed_row_2 = 6.05, 4.35
@@ -389,84 +555,116 @@ def draw_map(data: dict):
     def phase_of(label):
         return phase_label(streams[label])
 
-    product = streams["D02R product"]
+    def gap_card(label, column, y):
+        """A card above the pipe from ``column`` to the next column."""
+        card(ax, streams, label, column + half_w + 0.15, y)
+
+    def centred_card(label, column, y):
+        card(ax, streams, label, column - CARD_W / 2, y)
+
+    def across(column, label, row):
+        """The pipe from ``column`` to the next column, with its card."""
+        nxt = COLUMNS[COLUMNS.index(column) + 1]
+        pipe(ax, [(column + half_w, row), (nxt - half_w, row)],
+             phase_of(label))
+        gap_card(label, column, row + 0.2)
+
+    product = streams["D03R product"]
     vessel_box(ax, data, "CR01H", c1, ROW_1)
     vessel_box(ax, data, "CR02H", c2, ROW_1)
     filter_box(ax, data, "F01H", c3, ROW_1)
-    vessel_box(ax, data, "D01H", c4, ROW_1)
-    vessel_box(ax, data, "R02R", c1, ROW_2)
+    wash_box(ax, data, "W02H", c4, ROW_1)
+    vessel_box(ax, data, "D01H", c5, ROW_1)
+    vessel_box(ax, data, "R02R", c1, ROW_2,
+               ["ASSUMPTION A4: no solids form here"])
     vessel_box(ax, data, "D01R", c2, ROW_2)
     filter_box(ax, data, "F01R", c3, ROW_2)
-    vessel_box(ax, data, "D02R", c4, ROW_2,
-               ["product dissolved:", "product  " + percent_list(
-                   dissolved_share(product))][1:])
+    wash_box(ax, data, "W02R", c4, ROW_2)
+    vessel_box(ax, data, "D03R", c5, ROW_2,
+               ["product dissolved  "
+                + percent_list(dissolved_share(product))])
+
+    # A badge on each unit with a warning; the text is in the panel below.
+    tags = {name: f"W{i}" for i, name in enumerate(warnings, start=1)}
+    centres = {"CR01H": (c1, ROW_1), "CR02H": (c2, ROW_1), "F01H": (c3, ROW_1),
+               "W02H": (c4, ROW_1), "D01H": (c5, ROW_1), "R02R": (c1, ROW_2),
+               "D01R": (c2, ROW_2), "F01R": (c3, ROW_2), "W02R": (c4, ROW_2),
+               "D03R": (c5, ROW_2)}
+    for name, tag in tags.items():
+        x, y = centres[name]
+        note(ax, x + half_w - 0.62, y + half_h - 0.24, f"WARNING {tag}",
+             warn=True, fontsize=8.5, weight="bold", color=WARN_EDGE)
 
     # ---- row 1
     card(ax, streams, "Feed A", 0.25, top_cards)
     card(ax, streams, "Feed C", 3.4, top_cards)
     pipe(ax, [(2.6, top_cards), (2.6, top_1)], "liquid")
     pipe(ax, [(4.4, top_cards), (4.4, top_1)], "liquid")
-    pipe(ax, [(c1 + half_w, ROW_1), (c2 - half_w, ROW_1)],
-         phase_of("CR01H out"))
-    card(ax, streams, "CR01H out", 5.35, above_row_1)
+    across(c1, "CR01H out", ROW_1)
 
-    card(ax, streams, "A push", c2 - CARD_W / 2, top_cards)
+    centred_card("A push", c2, top_cards)
     pipe(ax, [(c2, top_cards), (c2, top_1)], "liquid")
-    pipe(ax, [(c2 + half_w, ROW_1), (c3 - half_w, ROW_1)],
-         phase_of("CR02H out"))
-    card(ax, streams, "CR02H out", 11.9, above_row_1)
+    across(c2, "CR02H out", ROW_1)
 
     pipe(ax, [(c3, bottom_1), (c3, mid_cards + CARD_H)],
          phase_of("Filtrate 1"))
-    card(ax, streams, "Filtrate 1", c3 - CARD_W / 2, mid_cards)
-    pipe(ax, [(c3 + half_w, ROW_1), (c4 - half_w, ROW_1)],
-         phase_of("F01H cake"))
-    card(ax, streams, "F01H cake", 18.25, above_row_1)
+    centred_card("Filtrate 1", c3, mid_cards)
+    across(c3, "F01H cake", ROW_1)
 
-    card(ax, streams, "Feed H", card_side, top_cards)
+    centred_card("W02H wash H", c4, top_cards)
     pipe(ax, [(c4, top_cards), (c4, top_1)], "liquid")
-    pipe(ax, [(c4, bottom_1), (c4, mid_cards + CARD_H)], phase_of("D01H out"),
-         head=True)
-    card(ax, streams, "D01H out", card_side, mid_cards)
+    pipe(ax, [(c4, bottom_1), (c4, mid_cards + CARD_H)],
+         phase_of("W02H filtrate"))
+    centred_card("W02H filtrate", c4, mid_cards)
+    across(c4, "W02H cake", ROW_1)
 
-    # ---- D01H -> R02R: crystals become dissolved F inside the link.
+    centred_card("Feed H", c5, top_cards)
+    pipe(ax, [(c5, top_cards), (c5, top_1)], "liquid")
+    pipe(ax, [(c5, bottom_1), (c5, mid_cards + CARD_H)], phase_of("D01H out"))
+    centred_card("D01H out", c5, mid_cards)
+
+    # ---- D01H -> R02R: crystals become dissolved F inside the link (A1).
+    # The route runs under the filtrate cards, then down into R02R.
     link = next(item for item in data["links"] if item["sink"] == "R02R")
     pill_x = 9.2
-    pipe(ax, [(c4, mid_cards), (c4, route_y), (pill_x + 1.9, route_y)],
+    pipe(ax, [(c5, mid_cards), (c5, route_y), (pill_x + 2.0, route_y)],
          phase_of("D01H out"), head=False)
-    pipe(ax, [(pill_x - 1.9, route_y), (4.4, route_y), (4.4, top_2)], "liquid")
+    pipe(ax, [(pill_x - 2.0, route_y), (4.4, route_y), (4.4, top_2)], "liquid")
     note(ax, pill_x, route_y,
-         f"{link['coupling']}: crystals become dissolved F\n"
-         "at R02R's inlet (R02R has no solid phase)")
+         "ASSUMPTION A1: solid F dissolves quickly, then reacts\n"
+         f"({link['coupling']}: slurry in, liquid out to R02R)")
 
     # ---- row 2
     card(ax, streams, "R02R makeup", 0.25, feed_row_2)
     pipe(ax, [(2.4, feed_row_2), (2.4, top_2)], "liquid")
     pipe(ax, [(c1 + half_w, ROW_2), (c2 - half_w, ROW_2)], "liquid")
-    card(ax, streams, "R02R out", 5.35, above_row_2)
+    gap_card("R02R out", c1, above_row_2)
 
-    card(ax, streams, "Feed B", c2 - CARD_W / 2, low_cards)
+    centred_card("Feed B", c2, low_cards)
     pipe(ax, [(c2, low_cards + CARD_H), (c2, bottom_2)], "liquid")
-    pipe(ax, [(c2 + half_w, ROW_2), (c3 - half_w, ROW_2)],
-         phase_of("D01R out"))
-    card(ax, streams, "D01R out", 11.9, above_row_2)
+    across(c2, "D01R out", ROW_2)
 
     pipe(ax, [(c3, bottom_2), (c3, low_cards + CARD_H)],
          phase_of("Filtrate 2"))
-    card(ax, streams, "Filtrate 2", c3 - CARD_W / 2, low_cards)
-    pipe(ax, [(c3 + half_w, ROW_2), (c4 - half_w, ROW_2)],
-         phase_of("F01R cake"))
-    card(ax, streams, "F01R cake", 18.25, above_row_2)
+    centred_card("Filtrate 2", c3, low_cards)
+    across(c3, "F01R cake", ROW_2)
 
-    card(ax, streams, "Feed L", card_side, feed_row_2)
+    centred_card("W02R wash B", c4, feed_row_2)
     pipe(ax, [(c4, feed_row_2), (c4, top_2)], "liquid")
     pipe(ax, [(c4, bottom_2), (c4, low_cards + CARD_H)],
-         phase_of("D02R product"))
-    card(ax, streams, "D02R product", card_side, low_cards)
+         phase_of("W02R filtrate"))
+    centred_card("W02R filtrate", c4, low_cards)
+    across(c4, "W02R cake", ROW_2)
+
+    centred_card("Feed L", c5, feed_row_2)
+    pipe(ax, [(c5, feed_row_2), (c5, top_2)], "liquid")
+    pipe(ax, [(c5, bottom_2), (c5, low_cards + CARD_H)],
+         phase_of("D03R product"))
+    centred_card("D03R product", c5, low_cards)
 
     # ---- title and legend
     fig.suptitle(
-        "Flowsheet phases and unit classes: D02R product is "
+        "Flowsheet phases and unit classes: D03R product is "
         + percent_list(dissolved_share(product)) + " dissolved",
         fontsize=17, weight="bold", color=TEXT_PRIMARY, x=0.012, ha="left",
         y=0.99)
@@ -488,9 +686,26 @@ def draw_map(data: dict):
                         "Dashed box: algebraic step in a link, no states",
                         "Solid box: vessel with its own states"],
               handler_map={tuple: HandlerTuple(ndivide=None, pad=0)},
-              loc="lower left", bbox_to_anchor=(0.0, -0.005), ncol=4,
-              frameon=False, fontsize=10.5)
-    fig.subplots_adjust(left=0.01, right=0.995, top=0.96, bottom=0.005)
+              loc="upper left", bbox_to_anchor=(0.1, -0.55),
+              bbox_transform=ax.transData, ncol=4, frameon=False,
+              fontsize=10.5)
+
+    # ---- assumptions and warnings
+    def panel(x, title, lines, warn):
+        ax.text(x, -1.5, title, fontsize=11.5, weight="bold", va="top",
+                color=WARN_EDGE if warn else TEXT_PRIMARY)
+        y = -1.95
+        for text in lines:
+            wrapped = textwrap.fill(text, 112, subsequent_indent="      ")
+            ax.text(x, y, wrapped, fontsize=10, va="top", color=TEXT_PRIMARY,
+                    linespacing=1.3)
+            y -= 0.25 * (wrapped.count("\n") + 1) + 0.12
+
+    panel(0.25, "Assumptions", ASSUMPTIONS, warn=False)
+    panel(16.25, "WARNINGS" if warnings else "Warnings: none",
+          [f"{tags[name]}  {text}" for name, text in warnings.items()],
+          warn=bool(warnings))
+    fig.subplots_adjust(left=0.01, right=0.995, top=0.965, bottom=0.005)
     return fig
 
 
@@ -564,6 +779,7 @@ if __name__ == "__main__":
 
     flowsheet = load_or_solve(args.solve)
     print_summary(flowsheet)
+    use_fonts()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     draw_map(flowsheet).savefig(MAP_PATH, dpi=130)
     draw_table(flowsheet).savefig(TABLE_PATH, dpi=130, bbox_inches="tight")

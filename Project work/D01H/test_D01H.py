@@ -1,6 +1,6 @@
-"""Tests for D01H, the H dissolver on the F01H cake.
+"""Tests for D01H, the H dissolver on the washed (F02H) cake.
 
-Each fixture solves the R01H -> F01H -> D01H chain once.
+Each fixture solves the R01H -> F01H -> D02H -> F02H -> D01H chain once.
 
 Units: mass flow [kg/s], concentration [mol/L], time [s].
 """
@@ -12,7 +12,7 @@ import pytest
 
 # D01H puts F01H, R01H and CustomUnitOps on the path, so it is imported first.
 import D01H
-import F01H
+import F01H  # noqa: F401  (kept: puts R01H on the path)
 
 
 def solve(h_flow=D01H.H_FLOW, k_h=D01H.ANTISOLVENT_K_H):
@@ -41,9 +41,10 @@ def no_antisolvent_effect_run():
 
 def test_regrid_keeps_the_cake(default_run):
     _, cake_flow, *_ = default_run
+    import F02H  # on the path once D01H.run_flowsheet has run
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        *_, filt = F01H.run_flowsheet()
+        *_, filt = F02H.run_flowsheet()
 
     assert cake_flow.solid_mass_flow == pytest.approx(
         filt.cake_flow.solid_mass_flow, rel=1e-12)

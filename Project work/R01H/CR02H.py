@@ -60,6 +60,7 @@ from __future__ import annotations
 import argparse
 import copy
 import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -119,6 +120,9 @@ from CR01H import (
     steady_state_gap,
 )
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "CustomUnitOps"))
+from continuous_filter import flow_from_vessel, stream_from_flow  # noqa: E402
+
 
 # CR02-only settings. Everything else comes from CR01H.
 CR02_TEMPERATURE = 5 + 273.15  # K, initial charge and jacket coolant inlet
@@ -131,25 +135,23 @@ PUSH_MARGIN = 0.10  # steady-state [A] / zero-solubility [A] - 1
 SUPERSATURATION_TYPE = "absolute"  # relative is undefined at c_sat = 0
 # Feed CR01's crystals along with its liquid. False drops them, as if CR01's
 # outlet were filtered first, and feeds only the (F-saturated) liquid.
-# True solves, but PharmaPy mis-sizes a slurry fed straight from a unit's
-# Outlet: the crystal distribution arrives ~1000x too small and the slurry
-# volume flow ~570x too large, and the inflated inlet and dilution terms
-# almost cancel. The liquid balance is fine; the crystal numbers are not.
-FEED_SOLIDS = False
+# The slurry is rebuilt from CR01's discharge by continuous_filter rather
+# than taken from CR01's Outlet: PharmaPy sizes an Outlet's solid stream per
+# vessel volume, not per flow, so fed as-is its crystals arrive ~1000x too
+# dilute and its mass reads ~700 g/s in CR02's energy balance.
+FEED_SOLIDS = True
 
 
 def cr01_feed(database_path: Path | str = DEFAULT_DATABASE_PATH,
               solids: bool = FEED_SOLIDS) -> MixedStream:
-    """Solve CR01H and return its outlet at the final time as CR02's feed.
+    """Solve CR01H and return its discharge at the final time as CR02's feed.
 
-    The outlet holds constant flows, temperature and composition (and the
-    crystal distribution, on the solid stream), so it feeds CR02 as a steady
+    The discharge holds constant flows, temperature and composition (and
+    the crystal number flow, with ``solids``), so it feeds CR02 as a steady
     stream rather than CR01's start-up transient.
     """
-    outlet = run_cr01(database_path).Outlet
-    streams = [stream for stream in outlet.Streams
-               if solids or stream.phase_family != "solid"]
-    return MixedStream(streams)
+    flow = flow_from_vessel(run_cr01(database_path))
+    return stream_from_flow(flow, include_solid=solids)
 
 
 def feed_mass_flow(feed: MixedStream) -> float:
@@ -659,10 +661,6 @@ if __name__ == "__main__":
           + (" (liquid + crystals)..." if FEED_SOLIDS else
              " (liquid only)..."))
     feed = cr01_feed(database)
-    if FEED_SOLIDS:
-        print("  WARNING: PharmaPy mis-sizes a slurry fed from a unit's "
-              "Outlet (see FEED_SOLIDS); the crystal balance below is not "
-              "reliable.")
 
     flow_a_push = FLOW_A_PUSH
     if args.size_feed:

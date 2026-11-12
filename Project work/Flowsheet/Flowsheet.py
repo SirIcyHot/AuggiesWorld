@@ -2,17 +2,22 @@
 
 The flowsheet is::
 
-    FEED_A --+                 A_PUSH --+           FEED_H --+
-             +--> CR01H --> CR02H ------+--> [F01H] ---------+--> D01H --+
-    FEED_C --+                               |                           |
-                                             +--> filtrate 1             |
-                                                                         |
-       +-----------------------------------------------------------------+
+    FEED_A --+              A_PUSH --+           WASH_H --+           FEED_H --+
+             +--> CR01H --> CR02H ---+--> [F01H] ---> W02H(D02H -> [F02H]) ---+--> D01H --+
+    FEED_C --+                              |                  |                          |
+                                            +--> filtrate 1    +--> wash filtrate H       |
+                                                                                          |
+       +----------------------------------------------------------------------------------+
        |
-       +--> R02R --> D01R --> [F01R] --> D02R --> product
-             ^        ^         |          ^
-    R02R makeup   FEED_B        |        FEED_L
-                                +--> filtrate 2
+       +--> R02R --> D01R --> [F01R] ---> W02R(D02R -> [F02R]) ---> D03R --> product
+             ^        ^         |           ^         |             ^
+    R02R makeup   FEED_B        |        WASH_B       |           FEED_L
+                                +--> filtrate 2       +--> wash filtrate B
+
+W02H and W02R are reslurry washes, each simulated as two unit ops (a wash
+dissolver and a filter) but reported as one block. D02H is identical to D01H
+(H, which dissolves very little F); D02R uses B, D01R's antisolvent, with
+D01R's solubility. F02H and F02R have the settings of F01H and F01R.
 
 ``PharmaPy.ConcurrentVessel`` (pharmapy-org >= 0.3.3) hands every member to one
 integrator as one state vector, so all units advance through each time step
@@ -20,15 +25,16 @@ together and each reads the live outlet of the unit feeding it. Every vessel
 comes from its own script's builder, with that script's settings: this file
 only connects them.
 
-Three connections are not plain links, because ConcurrentVessel members must
+Five connections are not plain links, because ConcurrentVessel members must
 be MultiPhaseVessels and a link assumes the sink looks like the source. Each
 one is a small algebraic step inside the link, re-evaluated on every
 right-hand side (see the ``CoupledInlet`` subclasses below):
 
-- ``F01H`` and ``F01R`` are the steady-state filters, with their settings taken
-  from ``F01H.build_filter`` and ``F01R.build_filter``. The standalone scripts
-  invent crystals from a Gaussian because their upstream reactor is all liquid;
-  here the filters get the real crystals from CR02H and D01R instead.
+- ``F01H``, ``F02H``, ``F01R`` and ``F02R`` are the steady-state filters, with
+  their settings taken from each script's ``build_filter``. The standalone
+  F01H and F01R scripts invent crystals from a Gaussian because their upstream
+  reactor is all liquid; here the filters get the real crystals from CR02H,
+  D02H, D01R and D02R instead.
 - ``D01H -> R02R``: D01H discharges a slurry but R02R has no solid phase. The
   crystals are assumed to dissolve on entering R02R, conserving mass. See
   ``SLURRY_TO_LIQUID`` for why this is defensible and what it hides.
@@ -36,19 +42,20 @@ right-hand side (see the ``CoupledInlet`` subclasses below):
 Where this differs from running the scripts one at a time
 ---------------------------------------------------------
 - CR02H receives CR01H's crystals (``CR02H.FEED_SOLIDS`` is False standalone).
-- D01H runs on CR01H's size grid and D02R on D01R's. The real crystals are mm
-  sized, which the 1-401 um and 1-200 um grids of those scripts cannot hold.
+- D02H and D01H run on CR01H's size grid, D02R and D03R on D01R's. The real
+  crystals are mm sized, which the 1-401 um grid of D01H cannot hold.
 - R02R's F comes only from D01H. ``R02R_MAKEUP`` is R02R's own feed with the F
   taken out, at the same mass flows of everything else.
-- D01H's S0 is fixed at the CR02H mother liquor given by ``CAKE_LIQUID_DESIGN``,
-  since a kinetics object cannot read a stream that starts empty. The report
-  warns if the run ends up elsewhere.
+- D02H's and D01H's S0 (the same, the vessels being identical) is fixed at the
+  CR02H mother liquor given by ``CAKE_LIQUID_DESIGN``, since a kinetics object
+  cannot read a stream that starts empty. The report warns if the run ends up
+  elsewhere.
 
 Solver
 ------
-``AssimuloBackend`` (CVode). The crystallizers ask for a Krylov linear solve
-and ConcurrentVessel passes that on, so no dense Jacobian is ever formed; that
-is what makes ~2800 states practical. ScipyBackend would form one every time.
+CVode (Assimulo) with GMRES, as the crystallizers ask for, plus a preconditioner
+of one Jacobian block per vessel (``BlockPreconditionedCVode``). ~2800 states
+rule out a dense Jacobian, and GMRES alone stalls on the dissolution kinetics.
 Run from an activated environment, or LAPACK fails to load::
 
     conda activate PharmaPy
@@ -72,6 +79,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+from scipy.linalg import lu_factor, lu_solve
 
 from PharmaPy.ConcurrentVessel import ConcurrentVessel, CoupledInlet, StreamLink
 from PharmaPy.DataClasses import PhaseRef, StateKey
@@ -84,16 +92,21 @@ HERE = Path(__file__).resolve().parent          # Project work/Flowsheet
 PROJECT = HERE.parent                           # Project work
 RESULTS_DIR = HERE / "results"
 
-for folder in ("D02R", "F01R", "D01R", "R02R", "D01H", "F01H", "R01H"):
+for folder in ("D03R", "F02R", "D02R", "F01R", "D01R", "R02R", "F02H", "D02H",
+               "D01H", "F01H", "R01H"):
     sys.path.insert(0, str(PROJECT / folder))
 
 import CR01H  # noqa: E402
 import CR02H  # noqa: E402
 import D01H  # noqa: E402
 import D01R  # noqa: E402
+import D02H  # noqa: E402
 import D02R  # noqa: E402
+import D03R  # noqa: E402
 import F01H  # noqa: E402
 import F01R  # noqa: E402
+import F02H  # noqa: E402
+import F02R  # noqa: E402
 import R02R  # noqa: E402
 from continuous_filter import (  # noqa: E402
     SlurryFlow, flow_from_vessel, stream_from_flow)
@@ -105,18 +118,23 @@ DB_PATH = F01H.DB_PATH
 # 12 of them), and D01R only starts settling once R02R has.
 RUNTIME = 16 * 3600.0  # s
 REPORT_POINTS = 481  # saved time points; the results replay visits each one
-SOLVER_OPTIONS = {"maxh": 120.0, "rtol": 1e-6, "atol": 1e-8}
+SOLVER_OPTIONS = {"maxh": 120.0, "rtol": 1e-6, "atol": 1e-8,
+                  "precond": "PREC_RIGHT"}
 
 # The crystal populations travel between these vessels unchanged, so each pair
 # shares one grid; see the module docstring.
-D01H.CRYSTAL_SIZE_GRID = CR01H.CRYSTAL_SIZE_GRID
+D01H.CRYSTAL_SIZE_GRID = CR01H.CRYSTAL_SIZE_GRID  # D02H builds through D01H
+D02H.CRYSTAL_SIZE_GRID = CR01H.CRYSTAL_SIZE_GRID
 F01R.CRYSTAL_SIZE_GRID = D01R.CRYSTAL_SIZE_GRID
 D02R.CRYSTAL_SIZE_GRID = D01R.CRYSTAL_SIZE_GRID
+D03R.CRYSTAL_SIZE_GRID = D01R.CRYSTAL_SIZE_GRID
 
-# CR02H's mother liquor at steady state [kg/s liquid], which fixes D01H's S0
-# (D01H.solubility_s0 reads the cake liquid's [F]) and its temperature.
-CAKE_LIQUID_DESIGN = {"A": 1.4431e-4, "B": 8.2171e-4, "C": 9.0e-8, "F": 2.84e-6}
-CAKE_TEMPERATURE_DESIGN = 280.45  # K
+# CR02H's mother liquor at steady state [kg/s liquid], which fixes the S0 of
+# D02H and D01H (D01H.solubility_s0 reads the cake liquid's [F]) and their
+# temperature.
+CAKE_LIQUID_DESIGN = {"A": 1.4445e-4, "B": 8.2248e-4, "C": 8.76e-8,
+                      "F": 2.846e-6}
+CAKE_TEMPERATURE_DESIGN = 281.01  # K
 CAKE_DESIGN_TOL = 0.05  # relative; the report warns beyond this
 
 # R02R has no solid phase, so D01H's crystals join its liquid as dissolved F.
@@ -133,8 +151,13 @@ GRID_COLOR = "#e5e4e0"
 
 CR_SOLVENT = "B"  # the CR01H and CR02H feeds are B-based
 
-UNIT_CRYSTALS = {"CR01H": ("F",), "CR02H": ("F",), "D01H": ("F",), "R02R": (),
-                 "D01R": D01R.CRYSTAL_SPECIES, "D02R": D02R.CRYSTAL_SPECIES}
+UNIT_CRYSTALS = {"CR01H": ("F",), "CR02H": ("F",), "D02H": ("F",),
+                 "D01H": ("F",), "R02R": (), "D01R": D01R.CRYSTAL_SPECIES,
+                 "D02R": D02R.CRYSTAL_SPECIES, "D03R": D03R.CRYSTAL_SPECIES}
+
+# Wash blocks: each is two unit ops, reported as one block.
+WASH_BLOCKS = {"W02H": ("D02H", "F02H"), "W02R": ("D02R", "F02R")}
+PANEL_TITLES = {"D02H": "W02H (D02H wash)", "D02R": "W02R (D02R wash)"}
 
 
 # ------------------------------------------------- slurry bookkeeping
@@ -211,6 +234,25 @@ def split_cake(separator, shape, conc, liquid_flow, crystal_flows):
     return held * liquid_flow, cake_crystals
 
 
+def fold_top_cell(distrib, vol_weights):
+    """Move the top size cell's crystals into the cell below, keeping volume.
+
+    PharmaPy's finite-volume scheme pads the grid with a copy of its last
+    cell (Mechanisms.py, ``f_aug = [..., csd, csd[-1]]``). For growth the top
+    face is an outflow and that is harmless; for dissolution it is the inflow,
+    so a populated top cell draws in crystals from beyond the grid at its own
+    density, never drains, and fills every cell below. Those crystals then
+    dissolve into solute nobody fed: once D01R's E crystals reached the top
+    cell (~14 h), the L dissolver (now D03R) made ~0.03 g/s of E from nothing.
+    A dissolver fed an empty top cell keeps it empty, so the cake links feed
+    one.
+    """
+    n = np.array(distrib, dtype=float)
+    n[-2] += n[-1] * vol_weights[-1] / vol_weights[-2]
+    n[-1] = 0.0
+    return n
+
+
 # ------------------------------------------------- algebraic link steps
 class AlgebraicInlet(CoupledInlet):
     """A coupled inlet that keeps its class when copied.
@@ -255,6 +297,8 @@ class FilterCakeInlet(AlgebraicInlet):
         temp, conc, liquid_flow, crystals = live_outlet(self.source, self.shape)
         cake_liquid, cake_crystals = split_cake(
             self.separator, self.shape, conc, liquid_flow, crystals)
+        cake_crystals = [fold_top_cell(n, w) for n, w in
+                         zip(cake_crystals, self.shape.vol_weights)]
 
         cake_flow = cake_liquid + sum(
             float(n @ w) for n, w in zip(cake_crystals, self.shape.vol_weights))
@@ -309,6 +353,9 @@ class DissolvedSlurryInlet(AlgebraicInlet):
         mass_j[self.target] += sum(self.shape.crystal_mass(crystals))
         total = float(mass_j.sum())
 
+        if total <= 0.0:  # a solver iterate can throttle the outlet to nothing
+            return {"mass_flow": 0.0, "temp": temp}
+
         return {"mass_flow": total, "mass_frac": mass_j / total, "temp": temp}
 
 
@@ -356,6 +403,103 @@ def with_true_slurry_feed(vessel):
     return vessel
 
 
+class BlockPreconditionedCVode(AssimuloBackend):
+    """CVode with GMRES, preconditioned by one Jacobian block per vessel.
+
+    Unpreconditioned GMRES stalls at ~1150 s, when crystals reach D01R and
+    the L dissolver (now D03R): dissolution at k_d = 5e5 um/s on a 10 um grid has eigenvalues near
+    5e4 /s. A dense Jacobian of the whole plant would cost ~2800 evaluations of
+    every vessel each time. But this plant has no recycle, so its Jacobian
+    is block lower triangular: each vessel's own block carries the stiffness,
+    and the links only couple it to the vessel upstream. Each block is found by
+    finite differences on that vessel alone with the couplings frozen, and GMRES
+    still multiplies by the true Jacobian, so the links are not approximated in
+    the answer, only in the preconditioner.
+    """
+
+    PERTURBATION = np.sqrt(np.finfo(float).eps)
+
+    def set_ode_problem(self, unit, states_init):
+        super().set_ode_problem(unit, states_init)
+        self._unit = unit
+        self._blocks = None
+        self._factors = None
+        self.refreshes = 0
+        self._started = clock.time()
+        self._problem.prec_setup = self._prec_setup
+        self._problem.prec_solve = self._prec_solve
+
+    def _member_block(self, member, time, states):
+        """d(rates)/d(states) of one vessel, its inlets held fixed."""
+        states = np.array(states, dtype=float)
+        collection = member.solver_state_collection
+
+        # A state at zero is perturbed on the scale of its own group: a crystal
+        # size cell by the distribution's largest, a species by the total mass.
+        floor = np.ones(states.size)
+        for block in collection.slices.values():
+            floor[block] = max(1.0e-3 * float(np.abs(states[block]).max()),
+                               1.0e-12)
+
+        member.invalidate_inlet_cache()
+        base = np.array(member.unit_model(time=time, states=states),
+                        dtype=float)
+        block = np.zeros((states.size, states.size))
+
+        for j in range(states.size):
+            step = self.PERTURBATION * max(abs(states[j]), floor[j])
+            trial = states.copy()
+            trial[j] += step
+            member.invalidate_inlet_cache()
+            block[:, j] = (np.asarray(member.unit_model(time=time,
+                                                        states=trial))
+                           - base) / step
+
+        # One bad column must not poison the factorization: it only makes the
+        # preconditioner weaker, and GMRES still solves the true system.
+        return np.nan_to_num(block, nan=0.0, posinf=0.0, neginf=0.0)
+
+    def _prec_setup(self, t, y, fy, jok, gamma, data):
+        unit = self._unit
+        y = np.asarray(y, dtype=float)
+        refreshed = False
+
+        if not jok or self._blocks is None:
+            unit._eval_key = None
+            unit._evaluate(t, y)
+            with unit._frozen_couplings():
+                self._blocks = {
+                    name: self._member_block(
+                        unit.members[name], t, y[unit._member_slices[name]])
+                    for name in unit.order
+                }
+            # The vessels were left at the last perturbed state.
+            unit._eval_key = None
+            refreshed = True
+            self.refreshes += 1
+            if self.refreshes % 25 == 0:
+                print(f"  t = {float(t) / 3600:.2f} h, {self.refreshes} "
+                      f"preconditioner refreshes, "
+                      f"{(clock.time() - self._started) / 60:.1f} min wall",
+                      flush=True)
+
+        self._factors = {
+            name: lu_factor(np.eye(block.shape[0]) - gamma * block,
+                            check_finite=False)
+            for name, block in self._blocks.items()
+        }
+        return [refreshed, data]
+
+    def _prec_solve(self, t, y, fy, r, gamma, delta, data):
+        unit = self._unit
+        solved = np.array(r, dtype=float)
+        for name, factors in self._factors.items():
+            piece = unit._member_slices[name]
+            solved[piece] = lu_solve(factors, solved[piece],
+                                     check_finite=False)
+        return solved
+
+
 def attach(cv, link, coupling, stream):
     """Add a link, then give it ``coupling`` and the sink's own inlet stream.
 
@@ -401,11 +545,12 @@ def cake_template_f01h(names) -> MixedStream:
     return stream_from_flow(flow, include_solid=True)
 
 
-def cake_template_f01r(names) -> MixedStream:
-    """Inlet template for D02R: a liquid, then a D, an E and a J solid."""
+def cake_template_r(names, dissolver=D02R) -> MixedStream:
+    """Inlet template for D02R or D03R (``dissolver``, the module): a liquid,
+    then a D, an E and a J solid, built by that dissolver's ``cake_stream``."""
     liquid = np.zeros(len(names))
     liquid[names.index("H")] = 1.0e-4
-    species = D02R.CRYSTAL_SPECIES
+    species = dissolver.CRYSTAL_SPECIES
     solid_frac = np.zeros(len(names))
     solid_frac[[names.index(s) for s in species]] = 1.0 / len(species)
     density = F01R.mixed_density({s: 1.0 for s in species},
@@ -413,12 +558,13 @@ def cake_template_f01r(names) -> MixedStream:
     flow = SlurryFlow(
         path_thermo=str(DB_PATH), name_species=list(names),
         temp=D01R.CRYSTALLIZER_TEMPERATURE, liquid_mass_j=liquid,
-        name_solv="H", x_grid=np.asarray(D02R.CRYSTAL_SIZE_GRID, dtype=float),
+        name_solv="H",
+        x_grid=np.asarray(dissolver.CRYSTAL_SIZE_GRID, dtype=float),
         crystal_flow=F01R.crystal_number_flow(1.0e-4, density),
         solid_mass_frac=solid_frac, solid_density=density,
-        kv=D02R.CRYSTAL_KV, target_components=list(species),
+        kv=dissolver.CRYSTAL_KV, target_components=list(species),
         solvent_name="H")
-    return D02R.cake_stream(flow)
+    return dissolver.cake_stream(flow)
 
 
 def r02r_makeup(names):
@@ -441,21 +587,27 @@ def build_flowsheet() -> ConcurrentVessel:
     cr01 = CR01H.build_reactor(DB_PATH)
     cr02 = with_true_slurry_feed(CR02H.build_reactor(
         DB_PATH, feed=liquid_template(names, "H")))
+    # D02H and D01H: the same vessel, the same design template (S0, T).
+    d02h = with_true_slurry_feed(D02H.build_dissolver(cake_template_f01h(names)))
     d01h = with_true_slurry_feed(D01H.build_dissolver(cake_template_f01h(names)))
     r02r = R02R.build_reactor(DB_PATH)
     r02r.Inlet = [r02r_makeup(names)]
     d01r = D01R.build_crystallizer(liquid_template(names, "H"))
-    d02r = with_true_slurry_feed(D02R.build_dissolver(cake_template_f01r(names)))
+    d02r = with_true_slurry_feed(D02R.build_dissolver(cake_template_r(names, D02R)))
+    d03r = with_true_slurry_feed(D03R.build_dissolver(cake_template_r(names, D03R)))
 
     cv = ConcurrentVessel(
-        {"CR01H": cr01, "CR02H": cr02, "D01H": d01h, "R02R": r02r,
-         "D01R": d01r, "D02R": d02r},
-        integrator=AssimuloBackend(options=dict(SOLVER_OPTIONS)),
+        {"CR01H": cr01, "CR02H": cr02, "D02H": d02h, "D01H": d01h,
+         "R02R": r02r, "D01R": d01r, "D02R": d02r, "D03R": d03r},
+        integrator=BlockPreconditionedCVode(options=dict(SOLVER_OPTIONS)),
     )
 
     cv.add_link(StreamLink("CR01H", "CR02H", inlet=0))
-    attach(cv, StreamLink("CR02H", "D01H", inlet=0, name="F01H"),
+    attach(cv, StreamLink("CR02H", "D02H", inlet=0, name="F01H"),
            FilterCakeInlet(cr02, F01H.build_filter()),
+           cake_template_f01h(names))
+    attach(cv, StreamLink("D02H", "D01H", inlet=0, name="F02H"),
+           FilterCakeInlet(d02h, F02H.build_filter()),
            cake_template_f01h(names))
     attach(cv, StreamLink("D01H", "R02R", name="D01H->R02R"),
            DissolvedSlurryInlet(d01h, SLURRY_TO_LIQUID["species"]),
@@ -463,7 +615,10 @@ def build_flowsheet() -> ConcurrentVessel:
     cv.add_link(StreamLink("R02R", "D01R", inlet=0))
     attach(cv, StreamLink("D01R", "D02R", inlet=0, name="F01R"),
            FilterCakeInlet(d01r, F01R.build_filter()),
-           cake_template_f01r(names))
+           cake_template_r(names, D02R))
+    attach(cv, StreamLink("D02R", "D03R", inlet=0, name="F02R"),
+           FilterCakeInlet(d02r, F02R.build_filter()),
+           cake_template_r(names, D03R))
     return cv
 
 
@@ -539,8 +694,12 @@ def stream_table(cv) -> dict[str, SimpleNamespace]:
     }
     cake_1, filtrate_1 = filter_streams(outlets["CR02H"], F01H.build_filter(),
                                         UNIT_CRYSTALS["CR02H"])
+    wash_h_cake, wash_h_filtrate = filter_streams(
+        outlets["D02H"], F02H.build_filter(), UNIT_CRYSTALS["D02H"])
     cake_2, filtrate_2 = filter_streams(outlets["D01R"], F01R.build_filter(),
                                         UNIT_CRYSTALS["D01R"])
+    wash_r_cake, wash_r_filtrate = filter_streams(
+        outlets["D02R"], F02R.build_filter(), UNIT_CRYSTALS["D02R"])
 
     return {
         "Feed A": fresh_feed(CR01H.make_feed(
@@ -553,6 +712,10 @@ def stream_table(cv) -> dict[str, SimpleNamespace]:
         "CR02H out": entries["CR02H"],
         "F01H cake": cake_1,
         "Filtrate 1": filtrate_1,
+        # W02H, one block: D02H's discharge to F02H stays inside it.
+        "W02H wash H": fresh_feed(D02H.h_stream(names)),
+        "W02H cake": wash_h_cake,
+        "W02H filtrate": wash_h_filtrate,
         "Feed H": fresh_feed(D01H.h_stream(names)),
         "D01H out": entries["D01H"],
         "R02R makeup": fresh_feed(r02r_makeup(names)),
@@ -561,23 +724,30 @@ def stream_table(cv) -> dict[str, SimpleNamespace]:
         "D01R out": entries["D01R"],
         "F01R cake": cake_2,
         "Filtrate 2": filtrate_2,
-        "Feed L": fresh_feed(D02R.l_stream(names)),
-        "D02R product": entries["D02R"],
+        # W02R, one block: D02R's discharge to F02R stays inside it.
+        "W02R wash B": fresh_feed(D02R.b_stream(names)),
+        "W02R cake": wash_r_cake,
+        "W02R filtrate": wash_r_filtrate,
+        "Feed L": fresh_feed(D03R.l_stream(names)),
+        "D03R product": entries["D03R"],
     }
 
 
-PLANT_IN = ("Feed A", "Feed C", "A push", "Feed H", "R02R makeup", "Feed B",
-            "Feed L")
-PLANT_OUT = ("Filtrate 1", "Filtrate 2", "D02R product")
+PLANT_IN = ("Feed A", "Feed C", "A push", "W02H wash H", "Feed H",
+            "R02R makeup", "Feed B", "W02R wash B", "Feed L")
+PLANT_OUT = ("Filtrate 1", "W02H filtrate", "Filtrate 2", "W02R filtrate",
+             "D03R product")
 UNIT_BALANCES = {
     "CR01H": (("Feed A", "Feed C"), ("CR01H out",)),
     "CR02H": (("CR01H out", "A push"), ("CR02H out",)),
     "F01H": (("CR02H out",), ("F01H cake", "Filtrate 1")),
-    "D01H": (("F01H cake", "Feed H"), ("D01H out",)),
+    "W02H": (("F01H cake", "W02H wash H"), ("W02H cake", "W02H filtrate")),
+    "D01H": (("W02H cake", "Feed H"), ("D01H out",)),
     "R02R": (("D01H out", "R02R makeup"), ("R02R out",)),
     "D01R": (("R02R out", "Feed B"), ("D01R out",)),
     "F01R": (("D01R out",), ("F01R cake", "Filtrate 2")),
-    "D02R": (("F01R cake", "Feed L"), ("D02R product",)),
+    "W02R": (("F01R cake", "W02R wash B"), ("W02R cake", "W02R filtrate")),
+    "D03R": (("W02R cake", "Feed L"), ("D03R product",)),
 }
 
 
@@ -657,9 +827,27 @@ def print_report(cv, wall: float):
           f"({(plant_in - plant_out) / plant_in:>7.2%})")
     print(f"  F01H link vs ContinuousFilter: {check_filter(cv):.2e} relative")
 
+    print("\nWash blocks (cake in -> cake out):")
+    for block, solvent, cake_in in (("W02H", "H", "F01H cake"),
+                                    ("W02R", "B", "F01R cake")):
+        dissolver = WASH_BLOCKS[block][0]
+        fed = table[cake_in]
+        washed = table[f"{block} cake"]
+        left = sum(from_outlet(outlet_at(cv.members[dissolver]),
+                               UNIT_CRYSTALS[dissolver]).solids.values())
+        crystals_in = sum(fed.solids.values())
+        j_wash = names.index(solvent)
+        liquor_in = float(fed.liquid.sum() - fed.liquid[j_wash])
+        liquor_out = float(washed.liquid.sum() - washed.liquid[j_wash])
+        print(f"  {block}: {dissolver} dissolves "
+              f"{1 - left / max(crystals_in, 1e-30):.2%} of the "
+              f"{crystals_in * 1e3:.4f} g/s of crystals; non-{solvent} liquor "
+              f"in the cake {liquor_in * 1e3:.4f} -> {liquor_out * 1e3:.4f} g/s "
+              f"({1 - liquor_out / max(liquor_in, 1e-30):.1%} washed out)")
+
     print("\nKey results:")
     j_f = names.index("F")
-    cake = table["F01H cake"]
+    cake = table["W02H cake"]
     d01h_out = table["D01H out"]
     r02r_out = table["R02R out"]
     fed_f = sum(cake.solids.values())
@@ -670,14 +858,14 @@ def print_report(cv, wall: float):
     f_in = total_f = d01h_out.liquid[j_f] + left
     print(f"  F reaching R02R {f_in * 1e3:.4f} g/s, against "
           f"{R02R.total_feed_flow() * R02R.molar_to_mass_fraction(R02R.FEEDS[0][3], DB_PATH)['F'] * 1e3:.4f} g/s in its "
-          f"standalone feed; {1 - r02r_out.liquid[j_f] / total_f:.1%} converted.")
-    for species in D02R.CRYSTAL_SPECIES:
+          f"standalone feed; {1 - r02r_out.liquid[j_f] / max(total_f, 1e-30):.1%} converted.")
+    for species in D03R.CRYSTAL_SPECIES:
         j = names.index(species)
-        fed = table["F01R cake"].solids[species]
-        out = table["D02R product"]
+        fed = table["W02R cake"].solids[species]
+        out = table["D03R product"]
         solid = out.solids[species]
         share = out.liquid[j] / (out.liquid[j] + solid) if out.liquid[j] + solid else 0
-        print(f"  D02R {species}: crystals fed {fed * 1e3:.4f} g/s, leaving "
+        print(f"  D03R {species}: crystals fed {fed * 1e3:.4f} g/s, leaving "
               f"{solid * 1e3:.4f} g/s, {share:.1%} of the {species} in the "
               "product is dissolved.")
 
@@ -689,7 +877,7 @@ def print_report(cv, wall: float):
         print(f"  WARNING: CR02H's liquid F {actual_f:.3e} kg/s at "
               f"{actual_t:.2f} K has moved off CAKE_LIQUID_DESIGN "
               f"({design_f:.3e} kg/s, {CAKE_TEMPERATURE_DESIGN} K), which "
-              "sets D01H's S0 and temperature. Update it.")
+              "sets D02H's and D01H's S0 and temperature. Update it.")
 
     print("\nChange over the last 10 % of the run (settled below ~1 %):")
     for name, unit in cv.members.items():
@@ -700,10 +888,10 @@ def plot_profiles(cv):
     """What each vessel discharges vs time, one panel per vessel."""
     import matplotlib.pyplot as plt
 
-    show = {"CR01H": ("F",), "CR02H": ("F",), "D01H": ("F",),
+    show = {"CR01H": ("F",), "CR02H": ("F",), "D02H": ("F",), "D01H": ("F",),
             "R02R": ("F", "D", "E", "J"), "D01R": ("D", "E", "J"),
-            "D02R": ("D", "E", "J")}
-    fig, axes = plt.subplots(2, 3, figsize=(13, 7), sharex=True)
+            "D02R": ("D", "E", "J"), "D03R": ("D", "E", "J")}
+    fig, axes = plt.subplots(2, 4, figsize=(17, 7), sharex=True)
 
     for ax, (name, species) in zip(axes.flat, show.items()):
         history = outlet_history(cv.members[name], UNIT_CRYSTALS[name])
@@ -714,7 +902,8 @@ def plot_profiles(cv):
             if s in history.crystals:
                 ax.plot(hours, history.crystals[s] * 1e3, ls="--",
                         color=SPECIES_COLORS[s], lw=2)
-        ax.set_title(name, loc="left", color=TEXT_PRIMARY)
+        ax.set_title(PANEL_TITLES.get(name, name), loc="left",
+                     color=TEXT_PRIMARY)
         ax.set_ylabel("Discharge [g/s]")
         ax.grid(True, color=GRID_COLOR, lw=0.8)
         ax.spines[["top", "right"]].set_visible(False)

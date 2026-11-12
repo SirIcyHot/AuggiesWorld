@@ -1,4 +1,4 @@
-"""Tests for F01R, the filter on the R02R product stream.
+"""Tests for F01R, the filter on the D01R slurry.
 
 Units: mass flow [kg/s], concentration [kmol/m3 = mol/L], temperature [K],
 density [kg/m3].
@@ -9,14 +9,8 @@ import warnings
 import numpy as np
 import pytest
 
-import F01R
-
-
-@pytest.fixture(scope="module")
-def r02r():
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        return F01R.r02r_outlet()
+import F01R  # puts D01R, R02R and CustomUnitOps on the path
+import D01R
 
 
 @pytest.fixture(scope="module")
@@ -26,83 +20,40 @@ def flowsheet():
         return F01R.run_flowsheet()
 
 
-def test_feed_carries_the_r02r_outlet_flow(flowsheet):
-    """Crystallizing moves mass between phases; it creates none."""
-    _, outlet, feed, _ = flowsheet
+def test_feed_is_the_whole_d01r_discharge(flowsheet):
+    """The merged outlet carries D01R's own liquid and crystal outflow."""
+    tank, outlet, _ = flowsheet
+    balance = D01R.final_balance(tank)
 
-    assert feed.liquid_mass_flow + feed.solid_mass_flow == pytest.approx(
-        outlet.liquid_mass_flow, rel=1e-12)
-    assert feed.temp == outlet.temp
-
-
-def test_only_d_e_and_j_crystallize(flowsheet):
-    _, outlet, feed, _ = flowsheet
-    names = list(feed.name_species)
-    others = [j for j, n in enumerate(names) if n not in F01R.CRYSTAL_SPECIES]
-
-    np.testing.assert_array_equal(feed.liquid_mass_j[others],
-                                  outlet.liquid_mass_j[others])
-
-    crystals = F01R.crystal_mass_by_species(feed)
+    assert outlet.liquid_mass_j == pytest.approx(balance.outlet, rel=1e-6,
+                                                 abs=1e-12)
+    crystals = F01R.crystal_mass_by_species(outlet)
     for name in F01R.CRYSTAL_SPECIES:
-        j = names.index(name)
         assert crystals[name] == pytest.approx(
-            outlet.liquid_mass_j[j] - feed.liquid_mass_j[j], rel=1e-9)
+            balance.crystal[name]["outlet"], rel=1e-6, abs=1e-12)
 
 
-def test_fixed_fractions_are_applied(r02r):
-    _, outlet = r02r
-    settings = {"D": 0.2, "E": 0.5, "J": 0.9}
-    feed = F01R.crystallize(outlet, settings=settings)
+def test_crystals_come_from_d01r_not_a_placeholder(flowsheet):
+    """Every species is partly dissolved, partly crystalline."""
+    _, outlet, _ = flowsheet
 
-    for name, value in F01R.crystalline_fraction(feed).items():
-        assert value == pytest.approx(settings[name], rel=1e-9)
+    for name, value in F01R.crystalline_fraction(outlet).items():
+        assert 0.0 < value < 1.0, name
 
 
-def test_mixed_density_is_mass_over_volume(r02r):
-    _, outlet = r02r
-    feed = F01R.crystallize(outlet)
-    crystals = F01R.crystal_mass_by_species(feed)
+def test_mixed_density_is_mass_over_volume(flowsheet):
+    _, outlet, _ = flowsheet
+    crystals = F01R.crystal_mass_by_species(outlet)
     densities = F01R.solid_densities(F01R.DEFAULT_DATABASE_PATH)
 
     volume = sum(crystals[n] / densities[n] for n in F01R.CRYSTAL_SPECIES)
-    assert feed.solid_density == pytest.approx(
+    assert outlet.solid_density == pytest.approx(
         sum(crystals.values()) / volume, rel=1e-12)
 
 
-def test_equilibrium_with_coupled_solubilities(r02r):
-    """Two solubility functions at once: both species end up saturated.
-
-    The functions are illustrative, not data. E's solubility depends on [D],
-    and crystallizing either species changes the liquid volume, so the two
-    equations are coupled and need the sweep to converge.
-    """
-    _, outlet = r02r
-    names = list(outlet.name_species)
-    j_d, j_e = names.index("D"), names.index("E")
-
-    def solub_d(temp, conc):
-        return 1e-3  # mol/L, about a tenth of R02R's outlet [D]
-
-    def solub_e(temp, conc):
-        return 1e-5 * (temp - 273.15) + 0.1 * conc[j_d]
-
-    settings = {"D": solub_d, "E": solub_e, "J": 1.0}
-    feed = F01R.crystallize(outlet, settings=settings)
-
-    liquid = F01R._liquid_stream(feed, feed.liquid_mass_j, feed.temp)
-    conc = np.asarray(liquid.mole_conc, dtype=float)
-
-    assert conc[j_d] == pytest.approx(solub_d(feed.temp, conc), rel=1e-8)
-    assert conc[j_e] == pytest.approx(solub_e(feed.temp, conc), rel=1e-8)
-    assert F01R.crystalline_fraction(feed)["J"] == pytest.approx(1.0)
-
-
-def test_rejects_unknown_species(r02r):
-    _, outlet = r02r
-
-    with pytest.raises(KeyError):
-        F01R.crystallize(outlet, settings={"A": 0.5})
+def test_grid_is_d01rs(flowsheet):
+    _, outlet, _ = flowsheet
+    np.testing.assert_array_equal(outlet.x_grid, D01R.CRYSTAL_SIZE_GRID)
 
 
 def test_filter_balance_and_settings(flowsheet):
@@ -115,8 +66,7 @@ def test_filter_balance_and_settings(flowsheet):
 
 
 def test_species_table_closes(flowsheet):
-    _, outlet, _, filt = flowsheet
-    _, r02r_out, feed, cake, filtrate = F01R.species_table(outlet, filt)[-1]
+    *_, filt = flowsheet
+    _, feed, cake, filtrate = F01R.species_table(filt)[-1]
 
-    assert feed == pytest.approx(r02r_out, rel=1e-12)
     assert cake + filtrate == pytest.approx(feed, rel=1e-12)

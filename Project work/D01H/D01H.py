@@ -1,17 +1,20 @@
-"""D01H: continuous dissolver on the F01H filter cake.
+"""D01H: continuous dissolver on the washed (F02H) filter cake.
 
 The flowsheet is::
 
-    R01H --> F01H --+-- filtrate
-                    |
-                    +-- cake --+
-                               +--> D01H --> slurry
-                     FEED_H ---+
+                         +----------- W02H -----------+
+    R01H --> F01H -cake->| D02H --> F02H -------cake--+--+
+              |          |  ^         |               |  |
+              |          +--|---------|---------------+  +--> D01H --> slurry
+              |            FEED_H     +--> wash filtrate |
+              +--> filtrate                   FEED_H ----+
 
 ``D01H`` is a ``PharmaPy.Crystallizers_Refactored.ContinuousCrystallizer``
-charged with H and fed two streams: F01H's cake (``f01h_cake`` solves
-R01H -> F01H and takes the cake MixedStream, F crystals plus the B-based
-mother liquor the cake holds) and pure H. The F crystals live in one solid
+charged with H and fed two streams: F02H's cake (``f02h_cake`` solves
+R01H -> F01H -> D02H -> F02H and takes the cake MixedStream, F crystals plus
+the mostly-H liquor the washed cake holds) and pure H. D02H, the wash ahead
+of it, is the same vessel (it calls this module's ``build_dissolver``). The
+F crystals live in one solid
 phase with a population balance on F01H's size grid, with nucleation,
 growth and dissolution kinetics. The R01H reactions are not carried into
 the tank: D01H only dissolves (or crystallizes) F.
@@ -28,8 +31,11 @@ Solubility of F (mol/L), with H as antisolvent::
 
     c_sat = S0 * exp(-K_H * [H])
 
-S0 is the F solubility in H-free liquid, taken as the cake liquid's own F
-concentration: F01H leaves its mother liquor saturated. Adding H dilutes
+S0 is the F solubility in H-free liquid, taken as F01H's cake liquid's own F
+concentration: F01H leaves its B-based mother liquor saturated. The washed
+F02H cake holds mostly H, so its [F] is not S0; ``run_flowsheet`` passes
+D02H's S0 (F01H's cake) instead, and ``build_dissolver`` reads the cake it
+is given only when no S0 is passed. Adding H dilutes
 the cake liquid, so some F dissolves to re-saturate it, but H also lowers
 the solubility. K_H is set so the two nearly cancel at D01H's steady [H]
 (~14 mol/L): only a few percent of the fed crystals dissolve. Lower K_H or
@@ -180,11 +186,28 @@ def regrid(flow: SlurryFlow, grid=CRYSTAL_SIZE_GRID) -> SlurryFlow:
 def f01h_cake():
     """Solve R01H -> F01H and re-bin the cake onto CRYSTAL_SIZE_GRID.
 
-    Returns (cake MixedStream, cake SlurryFlow), both on D01H's grid.
+    Returns (cake MixedStream, cake SlurryFlow), both on D01H's grid. D02H,
+    the wash, is fed this cake.
     """
     *_, filt = F01H.run_flowsheet(DB_PATH)
     cake_flow = regrid(filt.cake_flow)
     return stream_from_flow(cake_flow, include_solid=True), cake_flow
+
+
+def f02h_cake():
+    """Solve R01H -> F01H -> D02H -> F02H: the washed cake D01H is fed.
+
+    Returns (cake MixedStream, cake SlurryFlow, S0), the cake on D01H's grid
+    and S0 the F solubility in H-free liquid that D02H used (F01H's cake
+    liquid [F]); the washed cake's own [F] is not S0.
+    """
+    sys.path.insert(0, str(HERE.parent / "F02H"))
+    import F02H  # here, not at the top: F02H imports D02H, which imports D01H
+
+    d02h_cake, _, _, filt = F02H.run_flowsheet()
+    cake_flow = regrid(filt.cake_flow)
+    return (stream_from_flow(cake_flow, include_solid=True), cake_flow,
+            solubility_s0(d02h_cake))
 
 
 def h_stream(names) -> LiquidStream:
@@ -229,13 +252,18 @@ def residence_time(cake: MixedStream) -> float:
     return INITIAL_MASS / feed_mass_flow(cake)
 
 
-def build_dissolver(cake: MixedStream) -> ContinuousCrystallizer:
+def build_dissolver(cake: MixedStream, s0: float | None = None
+                    ) -> ContinuousCrystallizer:
     """D01H: a ContinuousCrystallizer charged with H, one F solid.
 
     The liquid <-> solid connections come from ContinuousCrystallizer's
     ``CrystKinetics`` setter: a forward (nucleation and growth) and a
     reverse (dissolution) transfer, both driven by the F population balance.
+    ``s0`` [mol/L] is the F solubility in H-free liquid; None reads it from
+    ``cake`` (``solubility_s0``), right only for an unwashed cake.
     """
+    if s0 is None:
+        s0 = solubility_s0(cake)
     names = species_names()
     temp = dissolver_temperature(cake)
 
@@ -259,7 +287,8 @@ def build_dissolver(cake: MixedStream) -> ContinuousCrystallizer:
     tank.Phases = [liquid, solid]
 
     # Kept on the tank so the results can evaluate c_sat after the solve.
-    tank.solubility = make_solubility_function(names, solubility_s0(cake))
+    tank.solubility = make_solubility_function(names, s0)
+    tank.solubility_s0 = s0
     kinetics = CrystKinetics(
         solub_fn=tank.solubility,
         nucl_prim=NUCL_PRIM, nucl_sec=NUCL_SEC, growth=GROWTH,
@@ -271,9 +300,9 @@ def build_dissolver(cake: MixedStream) -> ContinuousCrystallizer:
 
 
 def run_flowsheet(runtime: float | None = None):
-    """R01H -> F01H -> D01H. Returns (cake, cake flow, dissolver)."""
-    cake, cake_flow = f01h_cake()
-    tank = build_dissolver(cake)
+    """R01H -> F01H -> W02H -> D01H. Returns (cake, cake flow, dissolver)."""
+    cake, cake_flow, s0 = f02h_cake()
+    tank = build_dissolver(cake, s0)
 
     if runtime is None:
         runtime = NUM_RESIDENCE_TIMES * residence_time(cake)
@@ -323,6 +352,7 @@ def history(tank, cake_flow) -> SimpleNamespace:
         conc=conc[:, j],
         solubility=tank.solubility(float(tank.Phases.Liquids[0].temp), conc),
         fraction_dissolved=1.0 - crystal_out / crystal_in,
+        s0=float(tank.solubility_s0),
     )
 
 
@@ -458,7 +488,7 @@ def plot_profiles(cake, profiles):
         axis.set_xlabel("Time [min]")
         _style(axis)
 
-    fig.suptitle(f"D01H - H dissolver on the F01H cake  (residence time "
+    fig.suptitle(f"D01H - H dissolver on the washed F02H cake  (residence time "
                  f"{tau:.1f} min, run {t[-1] / tau:.0f} residence times)")
     fig.tight_layout()
     return fig
@@ -473,7 +503,7 @@ def plot_csd(tank, cake_flow):
     distrib = np.asarray(tank.result.distrib_solid0)[-1]
     fig, ax = plt.subplots(figsize=(9, 5))
     for number, label, color, style in (
-            (cake_flow.crystal_flow, "fed (F01H cake)", SERIES_COLORS[0],
+            (cake_flow.crystal_flow, "fed (F02H cake)", SERIES_COLORS[0],
              "-"),
             (distrib, "leaving D01H", SERIES_COLORS[1], "--")):
         mass = np.asarray(number) * x**3 * dx
@@ -510,7 +540,7 @@ def settings_rows(cake, cake_flow, profiles, balance):
          f"{dissolver_temperature(cake):.2f} K (isothermal, cake T)"),
         ("Tank", "Residence time",
          f"{tau:.1f} s ({tau / 60:.2f} min) = charge / feed"),
-        ("Feeds", "F01H cake",
+        ("Feeds", "F02H cake",
          f"{cake_flow.solid_mass_flow * 1e3:.4g} g/s crystals + "
          f"{cake_flow.liquid_mass_flow * 1e3:.4g} g/s liquid at "
          f"{cake_flow.temp:.4g} K"),
@@ -519,8 +549,8 @@ def settings_rows(cake, cake_flow, profiles, balance):
          f"{H_FLOW * 1e3:g} g/s at {H_TEMPERATURE:g} K"),
         ("Solubility", "Model",
          f"S0 exp(-{ANTISOLVENT_K_H:g} [{ANTISOLVENT_NAME}]) mol/L"),
-        ("Solubility", "S0", f"{solubility_s0(cake):.4g} mol/L "
-                             "(cake liquid [F], saturated)"),
+        ("Solubility", "S0", f"{profiles.s0:.4g} mol/L "
+                             "(F01H cake liquid [F], saturated, as D02H)"),
         ("Kinetics F", "Nucl. / growth / dissol.",
          f"({kinetics(NUCL_PRIM)}) / ({kinetics(GROWTH)}) / "
          f"({kinetics(DISSOLUTION)})"),

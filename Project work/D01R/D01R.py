@@ -19,16 +19,23 @@ Solubility of each crystallizing species i (mol/L), with B as antisolvent::
 
     c_sat,i = S0_i * exp(-K_B * [B])
 
-S0_i is the solubility in B-free liquid, i.e. in R02R's outlet. It sits
-25 % above R02R's outlet concentration, so R02R's liquid alone stays
-undersaturated. With K_B = 0.2 L/mol, D01R's steady [B] (~19.4 mol/L)
-cuts every solubility to ~2 % of S0, so ~96 % of the D, E and J fed
-crystallizes. K_B = 0.0364 leaves them only ~5 % supersaturated, and a few
-percent crystallizes. Raise K_B or ANTISOLVENT_FLOW to crystallize more.
+S0_i is the solubility in B-free liquid, i.e. in R02R's outlet. It was set
+25 % above an earlier R02R outlet concentration. R02R now makes far more D
+and E (outlet ~0.27 and ~0.17 mol/L standalone against S0 0.0284 and
+0.01505), so its outlet arrives already supersaturated in D and E: solids
+would form in R02R, but the flowsheet assumes none do (all crystallization
+happens here). J (outlet ~0.036 mol/L, S0 0.0886) stays undersaturated
+until B is added. With K_B = 0.2 L/mol and 0.02 kg/s of antisolvent,
+D01R's steady [B] cuts every solubility far enough that ~100 % of the D
+and E and ~99 % of the J fed crystallizes (0.01 kg/s left ~4 % of J
+dissolved standalone and ~25 % in the coupled flowsheet, whose more
+dilute R02R outlet sits closer to saturation). Raise K_B or
+ANTISOLVENT_FLOW to crystallize more.
 
 The pure-B charge is far richer in B than the steady state, so the first
 solute to arrive meets a low solubility and crystallizes; those crystals
-redissolve as R02R's liquid displaces the charge. That start-up is what the
+redissolve as R02R's liquid displaces the charge, except where R02R's
+liquid is itself supersaturated (D and E). That start-up is what the
 dissolution kinetics act on.
 
 Crystallization rates (PharmaPy's CrystKinetics), relative supersaturation
@@ -104,7 +111,10 @@ SOLVENT_NAME = "B"  # the tank charge (R02R's solvent is H)
 ANTISOLVENT_NAME = "B"
 
 # Fresh antisolvent feed, pure ANTISOLVENT_NAME.
-ANTISOLVENT_FLOW = 1.0e-2  # kg/s
+# 0.02 kg/s, doubled from 0.01 to crystallize more D, E and J: J goes from
+# 95.8 % to 99.1 % crystallized standalone, D and E to ~100 %. Raising K_B
+# to 0.3 instead made scipy BDF fail in the start-up transient.
+ANTISOLVENT_FLOW = 2.0e-2  # kg/s
 ANTISOLVENT_TEMPERATURE = 25 + 273.15  # K
 
 # Tank charge: pure B. Its mass sets the residence time.
@@ -113,13 +123,15 @@ INITIAL_COMPOSITION = {}  # solute mass fractions; solvent is the remainder
 CRYSTALLIZER_TEMPERATURE = 20 + 273.15  # K, held constant (isothermal tank)
 CRYSTALLIZER_DIAMETER = 0.2  # m
 
-# Solubility c_sat = S0 * exp(-K_B [B]) [mol/L]. S0 is 1.25x R02R's outlet
-# concentration.
+# Solubility c_sat = S0 * exp(-K_B [B]) [mol/L]. S0 was 1.25x an earlier
+# R02R outlet concentration; the current R02R outlet is supersaturated in D
+# and E (see the module docstring), and S0 is kept low so D01R crystallizes
+# nearly all of them in the more dilute coupled flowsheet too.
 SOLUBILITY_S0 = {"D": 0.0284, "E": 0.01505, "J": 0.0886}  # mol/L
 # L/mol: each 1 mol/L of B in the liquid multiplies every solubility by
-# exp(-K_B) = 0.82; at the ~19.4 mol/L of B the tank settles at
-# (0.01 kg/s B), exp(-K_B * 19.4) = 0.021, so ~96 % of D, E and J
-# crystallizes. 0.0364 (0.49 at steady state) crystallizes ~4 %.
+# exp(-K_B) = 0.82; at 0.01 kg/s of B the tank settled at ~19.4 mol/L B,
+# exp(-K_B * 19.4) = 0.021, so ~96 % crystallized; ANTISOLVENT_FLOW now
+# doubles that B feed. 0.0364 (0.49 at steady state) crystallizes ~4 %.
 ANTISOLVENT_K_B = 0.2
 
 # Kinetics per species, (k, E_a [J/mol], order). Units: nucleation
@@ -128,11 +140,16 @@ NUCL_PRIM = {name: (1.0e10, 0.0, 2.0) for name in CRYSTAL_SPECIES}
 NUCL_SEC = {name: (0.0, 0.0, 0.0, 0.0) for name in CRYSTAL_SPECIES}
 GROWTH = {name: (10.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
 # Dissolution kinetics for each species: k_d is the shrink rate [um/s] at
-# sigma = -1 (crystals in solute-free liquid).
+# sigma = -1 (crystals in solute-free liquid). 50 um/s is still fast: a
+# 1 mm crystal dissolves in ~20 s at sigma = -1, against a ~0.8 h residence
+# time, so the tank still settles in the same number of residence times.
+# On the 10 um grid it puts the dissolution eigenvalues near k_d / dx ~5 /s;
+# the old 5e5 um/s put them near 5e4 /s, which stalled unpreconditioned
+# GMRES in the coupled flowsheet.
 DISSOLUTION = {
-    "D": (5e5, 0.0, 1.0),
-    "E": (5e5, 0.0, 1.0),
-    "J": (5e5, 0.0, 1.0),
+    "D": (50.0, 0.0, 1.0),
+    "E": (50.0, 0.0, 1.0),
+    "J": (50.0, 0.0, 1.0),
 }
 
 # um. Crystals that grow past the last cell leave the population balance

@@ -1,36 +1,35 @@
-"""D02R: continuous dissolver on the F01R filter cake, with solvent L.
+"""D02R: B wash of the F01R filter cake (the dissolver half of block W02R).
 
 The flowsheet is::
 
-    R02R --> F01R --+-- filtrate
-                    |
-                    +-- cake --+
-                               +--> D02R --> solution (+ a few crystals)
-                     FEED_L ---+
+                                     +------------ W02R ------------+
+    R02R --> D01R --> F01R --cake--> | D02R --> F02R ---------cake--+--> D03R
+                        |            |  ^         |                 |
+                        |            +--|---------|-----------------+
+                        +--> filtrate  FEED_B     +--> wash filtrate
+
+W02R is a reslurry wash: D02R re-suspends F01R's cake in fresh B and F02R
+filters it again, so the cake reaching D03R carries B instead of most of
+D01R's mother liquor (G, H, A, I, ...). The two are separate unit ops, shown
+as one block in the flowsheet.
 
 ``D02R`` is a ``PharmaPy.Crystallizers_Refactored.ContinuousCrystallizer``
-charged with L and fed two streams: F01R's cake (``f01r_cake`` solves
-R02R -> F01R) and pure L. L is a new compound with DUMMY properties in
-``compound_databaseActual.json``; replace them when real data exist.
+charged with B and fed two streams: F01R's cake (``f01r_cake`` solves
+R02R -> D01R -> F01R) and pure B. F01R carries D, E and J crystals as one
+mixed population; here each species gets its own solid phase, population
+balance and kinetics, as in D01R. ``split_cake`` splits the mixed population
+by crystal volume: every species keeps the cake's size distribution shape,
+and its own crystal mass flow exactly. The cake enters as one stream
+(liquid, then the D, E and J solids, in that order); PharmaPy maps a feed's
+k-th solid onto the vessel's k-th solid.
 
-F01R carries D, E and J crystals as one mixed population. Here each
-species gets its own solid phase, population balance and kinetics, as in
-D01R, so each dissolves against its own solubility. ``split_cake`` splits
-the mixed population by crystal volume: every species keeps the cake's
-size distribution shape, and its own crystal mass flow exactly. The cake
-enters as one stream (liquid, then the D, E and J solids, in that order);
-PharmaPy maps a feed's k-th solid onto the vessel's k-th solid.
+Solubility and kinetics are D01R's, since B is D01R's antisolvent::
 
-Solubility of each species i (mol/L), with L as the dissolving solvent::
+    c_sat,i = S0_i * exp(-K_B * [B])
 
-    c_sat,i = S0_i * exp(K_L * [L])
-
-S0_i is the solubility in L-free liquid (R02R's H-based liquid); for now
-D, E and J share one value, D01R's S0 for J. K_L > 0, so L raises the
-solubility. It was set, for an earlier F01R cake, so that at
-D02R's steady [L] (~11 mol/L) the solubility sits just below what full
-dissolution of the cake crystals would give: D, E and J dissolve almost
-completely. Raise K_L or L_FLOW to dissolve the rest.
+In the nearly pure B of the wash tank (~50 mol/L), exp(-K_B [B]) is ~5e-5,
+so the crystals barely dissolve: only the solute the cake liquid carries in
+stays dissolved, plus whatever re-saturates the wash liquor.
 
 Crystallization rates (PharmaPy's CrystKinetics), relative supersaturation
 sigma_i = (c_i - c_sat,i) / c_sat,i::
@@ -39,11 +38,10 @@ sigma_i = (c_i - c_sat,i) / c_sat,i::
     growth       G = k_g * exp(-E_g / (R T)) * sigma**g      [um/s]
     dissolution  D = k_d * exp(-E_d / (R T)) * sigma*|sigma|**(d-1) [um/s]
 
-Growth and nucleation act when sigma > 0, dissolution when sigma < 0.
+The tank settings (fresh solvent flow, charge, temperature) are D01H's
+defaults. The residence time comes from the solvent charge::
 
-The residence time comes from the solvent charge::
-
-    tau = INITIAL_MASS / (cake mass flow + L_FLOW)
+    tau = INITIAL_MASS / (cake mass flow + B_FLOW)
 
 and the run lasts ``NUM_RESIDENCE_TIMES`` of them, enough to reach steady
 state.
@@ -86,13 +84,14 @@ from PharmaPy.Streams_Refactored import LiquidStream
 # ---------------------------------------------------------------- paths
 # Built from this file's location, so they work whichever folder Python is
 # started from. Update them here if any of these files move.
-HERE = Path(__file__).resolve().parent          # Project work/D02R.py
+HERE = Path(__file__).resolve().parent          # Project work/D02R
 F01R_DIR = HERE.parent / "F01R"
 RESULTS_DIR = HERE / "results"
 
 sys.path.insert(0, str(F01R_DIR))
 
-import F01R  # noqa: E402  (puts R02R and CustomUnitOps on the path)
+import F01R  # noqa: E402  (puts D01R, R02R and CustomUnitOps on the path)
+import D01R  # noqa: E402
 import R02R  # noqa: E402
 from continuous_filter import SlurryFlow  # noqa: E402
 
@@ -100,38 +99,33 @@ DB_PATH = F01R.DEFAULT_DATABASE_PATH
 
 # ---------------------------------------------------------------- settings
 CRYSTAL_SPECIES = F01R.CRYSTAL_SPECIES  # ("D", "E", "J")
-SOLVENT_NAME = "L"  # the tank charge (the cake liquid's solvent is H)
+SOLVENT_NAME = "B"  # the wash solvent and tank charge (the cake liquid's is B/H)
 
-# Fresh solvent feed, pure L.
-L_FLOW = 2.0e-3  # kg/s
-L_TEMPERATURE = 25 + 273.15  # K
+# Fresh wash feed, pure B. D01H's defaults: 0.5 g/s at 25 C.
+B_FLOW = 0.5e-3  # kg/s
+B_TEMPERATURE = 25 + 273.15  # K
 
-# Tank charge: pure L. Its mass sets the residence time.
-INITIAL_MASS = 2.5  # kg
+# Tank charge: pure B. Its mass sets the residence time (D01H's default).
+INITIAL_MASS = 1.0  # kg
 INITIAL_COMPOSITION = {}  # solute mass fractions; solvent is the remainder
 # None: held at the cake temperature (isothermal tank).
 DISSOLVER_TEMPERATURE = None  # K
-DISSOLVER_DIAMETER = 0.15  # m
+DISSOLVER_DIAMETER = 0.1  # m
 
-# Solubility c_sat = S0 exp(K_L [L]) [mol/L]. For now D, E and J share one
-# S0, D01R's J value (R02R's liquid, no L); D01R's own per-species values
-# were D 0.0284, E 0.01505, J 0.0886. L/mol: each 1 mol/L of L multiplies
-# every solubility by exp(K_L) = 1.18. Both were tuned for an earlier F01R
-# cake (~98.6 % dissolved); retune them for the current one.
-SHARED_SOLUBILITY_S0 = 0.0886  # mol/L
-SOLUBILITY_S0 = {name: SHARED_SOLUBILITY_S0 for name in CRYSTAL_SPECIES}
-SOLVENT_K_L = 0.166
+# Solubility c_sat = S0 exp(-K_B [B]) [mol/L]: D01R's, B being D01R's
+# antisolvent.
+SOLUBILITY_S0 = D01R.SOLUBILITY_S0  # mol/L
+ANTISOLVENT_K_B = D01R.ANTISOLVENT_K_B  # L/mol
 
-# Kinetics per species, (k, E_a [J/mol], order), D01R's nucleation and
-# growth. Units: nucleation #/(s m**3 slurry), growth and dissolution um/s.
-NUCL_PRIM = {name: (1.0e10, 0.0, 2.0) for name in CRYSTAL_SPECIES}
-NUCL_SEC = {name: (0.0, 0.0, 0.0, 0.0) for name in CRYSTAL_SPECIES}
-GROWTH = {name: (10.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
-# k_d is the shrink rate [um/s] at sigma = -1 (crystals in solute-free
-# liquid).
-DISSOLUTION = {name: (1.0e3, 0.0, 1.0) for name in CRYSTAL_SPECIES}
+# Kinetics per species, (k, E_a [J/mol], order): D01R's. Units: nucleation
+# #/(s m**3 slurry), growth and dissolution um/s.
+NUCL_PRIM = D01R.NUCL_PRIM
+NUCL_SEC = D01R.NUCL_SEC
+GROWTH = D01R.GROWTH
+DISSOLUTION = D01R.DISSOLUTION
 
-# The cake's size grid (F01R's, 1-200 um); the tank's solids must match it.
+# The cake's size grid (F01R's, which is D01R's); the tank's solids must
+# match it.
 CRYSTAL_SIZE_GRID = F01R.CRYSTAL_SIZE_GRID
 CRYSTAL_KV = F01R.CRYSTAL_KV
 
@@ -216,27 +210,28 @@ def cake_stream(cake_flow: SlurryFlow) -> MixedStream:
 
 
 def f01r_cake():
-    """Solve R02R -> F01R. Returns (cake MixedStream, cake SlurryFlow)."""
+    """Solve R02R -> D01R -> F01R. Returns (cake MixedStream, cake
+    SlurryFlow)."""
     *_, filt = F01R.run_flowsheet(DB_PATH)
     return cake_stream(filt.cake_flow), filt.cake_flow
 
 
-def l_stream(names) -> LiquidStream:
-    """Fresh L feed."""
+def b_stream(names) -> LiquidStream:
+    """Fresh B wash feed."""
     return LiquidStream(
-        str(DB_PATH), mass_flow=L_FLOW, temp=L_TEMPERATURE,
+        str(DB_PATH), mass_flow=B_FLOW, temp=B_TEMPERATURE,
         mass_frac=R02R.named_mass_fraction({}, names, SOLVENT_NAME),
         name_solv=SOLVENT_NAME, verbose=False)
 
 
 def make_solubility_function(names, species: str):
-    """c_sat of ``species`` [mol/L] from the liquid's L content."""
-    index_l = names.index(SOLVENT_NAME)
+    """c_sat of ``species`` [mol/L] from the liquid's B content (D01R's)."""
+    index_b = names.index(SOLVENT_NAME)
     s0 = SOLUBILITY_S0[species]
 
     def solubility(temp, conc):
         conc = np.asarray(conc)
-        return s0 * np.exp(SOLVENT_K_L * conc[..., index_l])
+        return s0 * np.exp(-ANTISOLVENT_K_B * conc[..., index_b])
 
     return solubility
 
@@ -248,8 +243,8 @@ def dissolver_temperature(cake: MixedStream) -> float:
 
 
 def feed_mass_flow(cake: MixedStream) -> float:
-    """Total mass flow into the tank: cake (liquid + crystals) plus L."""
-    return sum(float(np.sum(s.mass_flow)) for s in cake.Streams) + L_FLOW
+    """Total mass flow into the tank: cake (liquid + crystals) plus B."""
+    return sum(float(np.sum(s.mass_flow)) for s in cake.Streams) + B_FLOW
 
 
 def residence_time(cake: MixedStream) -> float:
@@ -258,7 +253,7 @@ def residence_time(cake: MixedStream) -> float:
 
 
 def build_dissolver(cake: MixedStream) -> ContinuousCrystallizer:
-    """D02R: a ContinuousCrystallizer charged with L, one solid per species.
+    """D02R: a ContinuousCrystallizer charged with B, one solid per species.
 
     The CrystKinetics convenience setter only links liquid 0 to solid 0, so
     each species' liquid <-> solid connection is built by hand, a forward
@@ -317,12 +312,12 @@ def build_dissolver(cake: MixedStream) -> ContinuousCrystallizer:
         ]
     tank.phase_connections = connections
     tank.nomenclature(overwrite=True)
-    tank.Inlet = [cake, l_stream(names)]
+    tank.Inlet = [cake, b_stream(names)]
     return tank
 
 
 def run_flowsheet(runtime: float | None = None):
-    """R02R -> F01R -> D02R. Returns (cake, cake flow, dissolver)."""
+    """R02R -> D01R -> F01R -> D02R. Returns (cake, cake flow, dissolver)."""
     cake, cake_flow = f01r_cake()
     tank = build_dissolver(cake)
 
@@ -418,7 +413,7 @@ def final_balance(tank) -> SimpleNamespace:
     read from the contribution buffer rather than re-derived.
 
     ``feeds`` (feed phase, species) inlet flows and ``feed_phases`` their
-    phase types, in the order cake liquid, cake D, E, J solids, L; liquid
+    phase types, in the order cake liquid, cake D, E, J solids, B; liquid
     ``inlet``, ``to_liquid`` (dissolved), ``outlet``, ``accumulation``
     (species); and per species ``crystal`` {name: {inlet, dissolved,
     outlet, accumulation}}, each weighted by that solid's own slurry
@@ -499,14 +494,14 @@ def fraction_dissolved(balance: SimpleNamespace,
 
 
 def liquid_feeds(balance: SimpleNamespace):
-    """(cake liquid, L) species flows [kg/s] from the inlet transfers."""
+    """(cake liquid, B) species flows [kg/s] from the inlet transfers."""
     liquids = [f for f, phase in zip(balance.feeds, balance.feed_phases)
                if phase == "liquid"]
     return liquids[0], liquids[-1]
 
 
 def balance_rows(balance: SimpleNamespace) -> list[list]:
-    """[component, cake in, L in, dissolved, out, accumulated] [kg/s]."""
+    """[component, cake in, B in, dissolved, out, accumulated] [kg/s]."""
     names = species_names()
     cake, fresh = liquid_feeds(balance)
     rows = []
@@ -572,7 +567,7 @@ def plot_profiles(cake, profiles):
         axis.legend(title="i", frameon=False)
         _style(axis)
 
-    fig.suptitle(f"D02R - L dissolver on the F01R cake  (residence time "
+    fig.suptitle(f"D02R - B wash of the F01R cake (W02R)  (residence time "
                  f"{tau:.1f} min, run {t[-1] / tau:.0f} residence times)")
     fig.tight_layout()
     return fig
@@ -636,9 +631,9 @@ def settings_rows(cake, cake_flow, profiles, balance):
          f"{cake_flow.liquid_mass_flow * 1e3:.4g} g/s at "
          f"{cake_flow.temp:.4g} K (w: {liquid})"),
         ("Feeds", f"Fresh {SOLVENT_NAME}",
-         f"{L_FLOW * 1e3:g} g/s at {L_TEMPERATURE:g} K"),
+         f"{B_FLOW * 1e3:g} g/s at {B_TEMPERATURE:g} K"),
         ("Solubility", "Model",
-         f"S0 exp({SOLVENT_K_L:g} [{SOLVENT_NAME}]) mol/L"),
+         f"S0 exp(-{ANTISOLVENT_K_B:g} [{SOLVENT_NAME}]) mol/L (D01R's)"),
         ("Solubility", "S0",
          ", ".join(f"{s} {SOLUBILITY_S0[s]:g}" for s in CRYSTAL_SPECIES)
          + " mol/L"),
@@ -748,7 +743,7 @@ def print_report(cake, cake_flow, tank, balance: SimpleNamespace):
               f"{profiles.crystal_mass[species][-1] * 1e3:>10.3f}"
               f"{dissolved[species]:>11.2%}")
 
-    print(f"\n  {'component':<16}{'cake in':>11}{'L in':>11}"
+    print(f"\n  {'component':<16}{'cake in':>11}{'B in':>11}"
           f"{'dissolved':>11}{'out':>11}{'accum.':>11}   [g/s]")
     for name, *values in balance_rows(balance):
         print(f"  {name:<16}" + "".join(f"{v * 1e3:>11.5f}" for v in values))
