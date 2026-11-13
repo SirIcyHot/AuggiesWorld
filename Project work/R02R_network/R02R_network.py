@@ -182,9 +182,16 @@ RATE_CONSTANTS = rate_constants()  # 1/s at KINETICS_TEMP_REF
 
 # ---------------------------------------------------------------- feed etc.
 # R02R's feed with C replaced by Z1. mol/L, full composition incl. solvent H.
+# The network experiments feed extra A: A_FEED_FACTOR multiplies R02R's
+# 3.841 mol/L. With the original amount G (5.276) outnumbers A, so K
+# formation leaves almost no free A; above ~1.4x there is A left over.
+# Only scripts in this folder read this feed (R02R_onemethod is unchanged).
+A_FEED_BASE = 3.841  # mol/L, R02R's A
+A_FEED_FACTOR = 2.0
 FEEDS = [
     ("Feed", 2.0e-2, "mol/L",
-     {"A": 3.841, "Z1": 0.509, "G": 5.276, "H": 5.938, "I": 1.110}),
+     {"A": A_FEED_BASE * A_FEED_FACTOR, "Z1": 0.509, "G": 5.276,
+      "H": 5.938, "I": 1.110}),
 ]
 FEED_TEMPERATURE = 303.15  # K (stream property; the vessel is isothermal)
 

@@ -204,8 +204,9 @@ K_MAX = net.K_MAX  # 1/s, cap on a species' pseudo-first-order loss
 TS_ENTROPY_PENALTY = 0.0  # kJ/mol per transition-state molecule beyond 1
 # Upper-bound bulk concentrations [mol/L] used only to size the cap: the
 # quoted feed values, with H allowed to grow by the A it can make.
-C_REF = {"A": 3.841, "G": 5.276, "H": 5.938 + 3.841, "I": 1.110,
-         "K": 3.841}
+_A_FED = net.FEEDS[0][3]["A"]
+C_REF = {"A": _A_FED, "G": 5.276, "H": 5.938 + _A_FED, "I": 1.110,
+         "K": _A_FED}
 C_REF_DEFAULT = 1.0  # mol/L, any other co-reactant (e.g. water)
 BULK_SPECIES = ("A", "B", "G", "H", "I", "K")  # co-reactants/catalysts
 C_REF_FLOOR = 1e-3  # mol/L, so an absent species (water) still sizes a cap
