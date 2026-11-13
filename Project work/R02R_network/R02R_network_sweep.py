@@ -24,6 +24,7 @@ Run it with::
 
     python R02R_network_sweep.py            # sweep, save figure + CSV, show
     python R02R_network_sweep.py --no-show  # sweep and save only
+    python R02R_network_sweep.py --from-csv # redraw from the saved CSV
 
 Writes ``results/R02R_network_sweep.png`` and
 ``results/R02R_network_sweep.csv``.
@@ -95,6 +96,20 @@ def save_csv(grids, path):
                         + f",{grids['gap'][i, j]:.3g}\n")
 
 
+def load_csv(path) -> dict[str, np.ndarray]:
+    """Grids back from ``save_csv`` output, on TAUS_H x TEMPS_C."""
+    data = np.genfromtxt(path, delimiter=",", names=True)
+    grids = {p: np.zeros((len(TAUS_H), len(TEMPS_C)))
+             for p in (*PRODUCTS, "gap")}
+    for row in data:
+        i = int(np.argmin(np.abs(TAUS_H - row["tau_h"])))
+        j = int(np.argmin(np.abs(TEMPS_C - row["temp_C"])))
+        for p in PRODUCTS:
+            grids[p][i, j] = row[f"yield_{p}"]
+        grids["gap"][i, j] = row["steady_state_gap"]
+    return grids
+
+
 def plot(grids):
     import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap, BoundaryNorm
@@ -108,7 +123,7 @@ def plot(grids):
     cmap = ListedColormap(BLUE_RAMP)
     norm = BoundaryNorm(bounds, cmap.N)
     ax = fig.add_subplot(gs[0, 0])
-    _heatmap(ax, grids["E"], cmap, norm, fmt=_pct,
+    _heatmap(ax, grids["E"], cmap, norm,
              title="Yield of E (mol per mol Z1 fed)")
     cbar = fig.colorbar(ax.images[0], ax=ax, ticks=bounds, shrink=0.9,
                         pad=0.02)
@@ -119,8 +134,8 @@ def plot(grids):
     d_bounds = [1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-3, 1e-2, 1e-1]
     d_norm = BoundaryNorm(d_bounds, cmap.N)
     ax_d = fig.add_subplot(gs[0, 1])
-    _heatmap(ax_d, np.maximum(grids["D"], 1e-12), cmap, d_norm, fmt=_sci,
-             title="Yield of D (mol per mol Z1 fed, log bins)")
+    _heatmap(ax_d, np.maximum(grids["D"], 1e-12), cmap, d_norm,
+             title="Yield of D (mol per mol Z1 fed)")
     cbar = fig.colorbar(ax_d.images[0], ax=ax_d, ticks=d_bounds, shrink=0.9,
                         pad=0.02)
     cbar.ax.set_yticklabels([f"$10^{{{int(np.log10(b))}}}$"
@@ -133,10 +148,10 @@ def plot(grids):
     for color, tau_h in zip(SERIES, picks):
         i = list(TAUS_H).index(tau_h)
         ax_e.plot(TEMPS_C, grids["E"][i], "o-", color=color, lw=2, ms=6,
-                  mec=SURFACE, mew=1.5, label=f"τ = {_tau(tau_h)}")
+                  mec=SURFACE, mew=1.5, label=f"{_tau(tau_h)} min")
     ax_e.set_ylabel("Yield of E")
     ax_e.set_title("E vs temperature", loc="left", fontsize=11)
-    ax_e.legend(frameon=False, loc="upper left", title="Residence time")
+    ax_e.legend(frameon=False, loc="upper left", title="Residence time τ")
     _line_axes(ax_e)
 
     # --- Where the Z1 goes at tau = 1 h (stacked fractions).
@@ -148,7 +163,7 @@ def plot(grids):
                    edgecolor=SURFACE, linewidth=1.5)
     ax_s.set_ylim(0, 1.0)
     ax_s.set_ylabel("Fraction of Z1 fed")
-    ax_s.set_title("Where the Z1 ends up at τ = 1 h", loc="left",
+    ax_s.set_title("Where the Z1 ends up at τ = 60 min", loc="left",
                    fontsize=11)
     ax_s.legend(frameon=False, loc="center left", reverse=True)
     _line_axes(ax_s)
@@ -157,40 +172,30 @@ def plot(grids):
         "R02R network (full stoichiometry): temperature × residence-time "
         "sweep, isothermal CSTR", x=0.06, ha="left", fontsize=13)
     fig.text(0.06, 0.015,
-             f"Dashed line: H boils at ~{BOILING_POINT_H_C:g} °C at 1 atm "
-             "(points above assume a pressurised vessel). K is thermally "
+             f"H boils at ~{BOILING_POINT_H_C:g} °C at 1 atm (points above "
+             "assume a pressurised vessel). K is thermally "
              "unstable and has no decomposition step in the model, so the "
              "hot region is a kinetic what-if.",
              fontsize=9, color=TEXT_MUTED)
     return fig
 
 
-def _heatmap(ax, data, cmap, norm, fmt, title):
+def _heatmap(ax, data, cmap, norm, title):
+    """Plain yield map: colour only, values read from the colour bar."""
     ax.imshow(data, origin="lower", aspect="auto", cmap=cmap, norm=norm,
               extent=(TEMPS_C[0] - 5, TEMPS_C[-1] + 5, -0.5,
                       len(TAUS_H) - 0.5))
-    for i in range(len(TAUS_H)):
-        for j, temp in enumerate(TEMPS_C):
-            if j % 2 == 0:
-                continue  # label 50, 70, ... so text clears the edges and
-                # the boiling-point line inside the 120 C cell
-            value = data[i, j]
-            dark = norm(value) >= 4
-            ax.text(temp, i, fmt(value), ha="center", va="center",
-                    fontsize=7, color=SURFACE if dark else TEXT_PRIMARY)
-    ax.axvline(BOILING_POINT_H_C, color=TEXT_PRIMARY, lw=1, ls="--")
     ax.set_yticks(range(len(TAUS_H)))
     ax.set_yticklabels([_tau(t) for t in TAUS_H])
-    ax.set_xticks(TEMPS_C[1::2])
+    ax.set_xticks(TEMPS_C[::2])
     ax.set_xlabel("Temperature [°C]")
-    ax.set_ylabel("Residence time τ")
+    ax.set_ylabel("Residence time τ [min]")
     ax.set_title(title, loc="left", fontsize=11)
     for spine in ax.spines.values():
         spine.set_visible(False)
 
 
 def _line_axes(ax):
-    ax.axvline(BOILING_POINT_H_C, color=TEXT_PRIMARY, lw=1, ls="--")
     ax.set_xlabel("Temperature [°C]")
     ax.set_xlim(TEMPS_C[0], TEMPS_C[-1])
     ax.grid(True, color=GRID, lw=0.8)
@@ -205,29 +210,33 @@ def _pct(v):
     return "<0.1%" if v > 0 else "0"
 
 
-def _sci(v):
-    e = int(np.floor(np.log10(v)))
-    return f"{v / 10 ** e:.0f}e{e}"
-
-
 def _tau(h):
-    return f"{h * 60:.0f} min" if h < 1 else f"{h:g} h"
+    """Residence time in minutes, as a plain number."""
+    return f"{h * 60:g}"
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--no-show", action="store_true")
+    parser.add_argument("--from-csv", action="store_true",
+                        help="redraw from results/R02R_network_sweep.csv "
+                             "instead of re-running the sweep")
     args = parser.parse_args()
     if args.no_show:
         import matplotlib
         matplotlib.use("Agg")
 
-    print(f"Sweeping {len(TEMPS_C)} temperatures x {len(TAUS_H)} "
-          "residence times:")
-    grids = run_sweep()
-    print(f"Largest steady-state gap: {grids['gap'].max():.2%} of inlet flow")
-    net.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    save_csv(grids, net.RESULTS_DIR / "R02R_network_sweep.csv")
+    csv_path = net.RESULTS_DIR / "R02R_network_sweep.csv"
+    if args.from_csv:
+        grids = load_csv(csv_path)
+    else:
+        print(f"Sweeping {len(TEMPS_C)} temperatures x {len(TAUS_H)} "
+              "residence times:")
+        grids = run_sweep()
+        print(f"Largest steady-state gap: {grids['gap'].max():.2%} of "
+              "inlet flow")
+        net.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        save_csv(grids, csv_path)
     fig = plot(grids)
     fig.savefig(net.RESULTS_DIR / "R02R_network_sweep.png", dpi=150,
                 bbox_inches="tight")
