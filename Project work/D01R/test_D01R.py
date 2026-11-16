@@ -70,14 +70,14 @@ def test_steady_mass_balance(default_run):
 
 
 def test_d_e_j_crystallize_mostly(default_run):
-    """K_B = 0.2 cuts the steady solubility to ~2 % of S0."""
+    """0.02 kg/s of B crystallizes ~99 % or more of each species."""
     *_, balance = default_run
     names = D01R.species_names()
 
     for species in D01R.CRYSTAL_SPECIES:
         j = names.index(species)
         fraction = balance.to_solid[j] / balance.feeds[:, j].sum()
-        assert 0.90 < fraction < 0.99, species
+        assert 0.98 < fraction < 1.0, species
 
 
 def test_crystals_stay_on_the_size_grid(default_run):
@@ -111,14 +111,34 @@ def test_crystals_gain_what_the_liquid_loses(default_run):
         assert terms["growth"] == pytest.approx(lost, rel=0.01), species
 
 
-def test_no_antisolvent_no_crystals_at_steady_state(no_antisolvent_run):
-    """R02R's outlet alone is below every S0, so whatever crystallizes
-    against the B-rich charge at start-up must dissolve again."""
-    _, _, profiles, _ = no_antisolvent_run
+def feed_conc(feed, species):
+    """R02R outlet concentration of ``species`` [mol/L]."""
+    names = list(D01R.species_names())
+    conc = np.asarray(feed.Streams[0].mole_conc, dtype=float).ravel()
+    return conc[names.index(species)]
+
+
+def test_without_antisolvent_only_supersaturated_species_crystallize(
+        no_antisolvent_run, default_run):
+    """Without B, a species R02R delivers below S0 (J) must redissolve
+    whatever crystallized against the B-rich charge at start-up, while one
+    R02R delivers above S0 (D, E: assumption A4, R02R forms no solids)
+    crystallizes down to S0 on its own, and less than with B."""
+    feed, _, profiles, _ = no_antisolvent_run
+    *_, with_b = default_run
+    names = D01R.species_names()
 
     for species in D01R.CRYSTAL_SPECIES:
-        assert profiles.conc[species][-1] < profiles.solubility[species][-1]
-        assert profiles.crystal_mass[species][-1] < 1e-9, species
+        conc = profiles.conc[species][-1]
+        solubility = profiles.solubility[species][-1]
+        if feed_conc(feed, species) < D01R.SOLUBILITY_S0[species]:
+            assert conc < solubility, species
+            assert profiles.crystal_mass[species][-1] < 1e-9, species
+        else:
+            assert conc == pytest.approx(solubility, rel=0.02), species
+            j = names.index(species)
+            assert (profiles.fraction_crystallized[species][-1]
+                    < with_b.to_solid[j] / with_b.feeds[:, j].sum()), species
 
 
 def test_figures_are_written(default_run, tmp_path):

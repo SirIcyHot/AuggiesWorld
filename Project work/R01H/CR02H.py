@@ -50,7 +50,8 @@ Figures are written to ``results/`` next to this file:
     CR02_mass_balance.png  inlet vs outlet species balance at the final time
     CR02_heat_sources.png  energy-balance terms (heat sources) vs time
 
-The compound database defaults to ``compound_databaseActual.json``; set
+The compound database defaults to ``compounddatabase/compound_databaseActual.json``
+(at the repo root); set
 ``PHARMAPY_DATABASE`` to use another one.
 """
 
@@ -59,6 +60,7 @@ from __future__ import annotations
 import argparse
 import copy
 import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -66,11 +68,11 @@ import numpy as np
 
 from PharmaPy.IntegratorBackends import ScipyBackend
 from PharmaPy.Kinetics import CrystKinetics
-from PharmaPy.DataClasses import IntraPhaseProcess, PhaseRef
-from PharmaPy.Mechanisms import OneDFVMMechanism, ReactionMechanism
+from PharmaPy.Mechanisms import OneDFVMMechanism
 from PharmaPy.MixedPhases_Refactored import MixedStream
 from PharmaPy.Phases_Refactored import LiquidPhase, SolidPhase
 from PharmaPy.Crystallizers_Refactored import ContinuousCrystallizer
+from PharmaPy.Reactive_Crystallizers import ContinuousReactiveCrystallizer
 from PharmaPy.Utilities import CoolingWater
 from CR01H import (
     ACTIVATION_ENERGIES,
@@ -118,6 +120,9 @@ from CR01H import (
     steady_state_gap,
 )
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "CustomUnitOps"))
+from continuous_filter import flow_from_vessel, stream_from_flow  # noqa: E402
+
 
 # CR02-only settings. Everything else comes from CR01H.
 CR02_TEMPERATURE = 5 + 273.15  # K, initial charge and jacket coolant inlet
@@ -130,25 +135,23 @@ PUSH_MARGIN = 0.10  # steady-state [A] / zero-solubility [A] - 1
 SUPERSATURATION_TYPE = "absolute"  # relative is undefined at c_sat = 0
 # Feed CR01's crystals along with its liquid. False drops them, as if CR01's
 # outlet were filtered first, and feeds only the (F-saturated) liquid.
-# True solves, but PharmaPy mis-sizes a slurry fed straight from a unit's
-# Outlet: the crystal distribution arrives ~1000x too small and the slurry
-# volume flow ~570x too large, and the inflated inlet and dilution terms
-# almost cancel. The liquid balance is fine; the crystal numbers are not.
-FEED_SOLIDS = False
+# The slurry is rebuilt from CR01's discharge by continuous_filter rather
+# than taken from CR01's Outlet: PharmaPy sizes an Outlet's solid stream per
+# vessel volume, not per flow, so fed as-is its crystals arrive ~1000x too
+# dilute and its mass reads ~700 g/s in CR02's energy balance.
+FEED_SOLIDS = True
 
 
 def cr01_feed(database_path: Path | str = DEFAULT_DATABASE_PATH,
               solids: bool = FEED_SOLIDS) -> MixedStream:
-    """Solve CR01H and return its outlet at the final time as CR02's feed.
+    """Solve CR01H and return its discharge at the final time as CR02's feed.
 
-    The outlet holds constant flows, temperature and composition (and the
-    crystal distribution, on the solid stream), so it feeds CR02 as a steady
+    The discharge holds constant flows, temperature and composition (and
+    the crystal number flow, with ``solids``), so it feeds CR02 as a steady
     stream rather than CR01's start-up transient.
     """
-    outlet = run_cr01(database_path).Outlet
-    streams = [stream for stream in outlet.Streams
-               if solids or stream.phase_family != "solid"]
-    return MixedStream(streams)
+    flow = flow_from_vessel(run_cr01(database_path))
+    return stream_from_flow(flow, include_solid=solids)
 
 
 def feed_mass_flow(feed: MixedStream) -> float:
@@ -201,7 +204,7 @@ def build_reactor(
     species_names = database_species(database_path)
     solvent_name = database_solvent(species_names)
 
-    reactor = ContinuousCrystallizer(
+    reactor = ContinuousReactiveCrystallizer(
         integrator=ScipyBackend(),
         h_conv=REACTOR_H_CONV,
         diam=REACTOR_DIAMETER,
@@ -240,13 +243,7 @@ def build_reactor(
         sup_sat_type=SUPERSATURATION_TYPE,
         solubility_basis="mole_per_volume_solution",
     )
-    reactor.intraphase_processes = [
-        IntraPhaseProcess(
-            phaseref=PhaseRef("liquid", 0),
-            mechanism=ReactionMechanism(build_kinetics(database_path), liquid),
-        )
-    ]
-    reactor.nomenclature(overwrite=True)
+    reactor.RxnKinetics = build_kinetics(database_path)
     reactor.Utility = CoolingWater(
         mass_flow=COOLANT_MASS_FLOW,
         temp_in=CR02_TEMPERATURE,
@@ -664,10 +661,6 @@ if __name__ == "__main__":
           + (" (liquid + crystals)..." if FEED_SOLIDS else
              " (liquid only)..."))
     feed = cr01_feed(database)
-    if FEED_SOLIDS:
-        print("  WARNING: PharmaPy mis-sizes a slurry fed from a unit's "
-              "Outlet (see FEED_SOLIDS); the crystal balance below is not "
-              "reliable.")
 
     flow_a_push = FLOW_A_PUSH
     if args.size_feed:

@@ -33,7 +33,7 @@ Run it with::
 
     python F01H.py
 
-The compound database defaults to R01H's ``compound_databaseActual.json``;
+The compound database defaults to ``compounddatabase/compound_databaseActual.json``;
 set ``PHARMAPY_DATABASE`` to use another one.
 """
 
@@ -58,7 +58,7 @@ HERE = Path(__file__).resolve().parent          # Project work/F01H
 ROOT = HERE.parents[1]                          # AuggiesWorld
 
 R01H_DIR = ROOT / "Project work" / "R01H"
-DB_PATH = R01H_DIR / "compound_databaseActual.json"
+DB_PATH = ROOT / "compounddatabase" / "compound_databaseActual.json"
 FILTER_DIR = ROOT / "CustomUnitOps"
 
 sys.path[:0] = [str(FILTER_DIR), str(R01H_DIR)]
