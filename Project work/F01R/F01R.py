@@ -4,20 +4,20 @@ The flowsheet is::
 
                        FEED_B --+
                                 |
-    R02R --(D, E, J in H)--> D01R --(D, E, J crystals)--> F01 --> cake
+    R02R --(D, E, J in H)--> D01R --(D, E crystals)---> F01 --> cake
                                                              \\--> filtrate
 
 ``D01R`` is the antisolvent crystallizer, run as-is from
 ``Project work/D01R/D01R.py`` (which itself solves R02R for its feed). Its
 outlet is taken at the final, steady time, so the filter sees exactly
-D01R's discharge: liquid, temperature and the real D, E and J crystals.
+D01R's discharge: liquid, temperature and the real D and E crystals.
 
 D01R holds one solid phase per species. The filter carries one solid, so
 ``d01r_outlet`` merges the three into one mixed population on D01R's size
 grid: number flows add cell by cell, the composition is each species'
 share of the crystal mass, and the density is total mass / total crystal
 volume. Mass by species is exact, because the filter treats every crystal
-alike; D02R splits the population back into D, E and J by volume.
+alike; D02R splits the population back into D and E by volume.
 
 D01R's three slurry volumes are not its vessel volume (see
 ``D01R.slurry_volumes``), so the outlet is split into liquid and crystal
@@ -66,7 +66,7 @@ import D01R  # noqa: E402
 DEFAULT_DATABASE_PATH = DB_PATH
 
 # ---------------------------------------------------------------- settings
-CRYSTAL_SPECIES = D01R.CRYSTAL_SPECIES  # ("D", "E", "J")
+CRYSTAL_SPECIES = D01R.CRYSTAL_SPECIES  # ("D", "E")
 
 # The crystals arrive from D01R, so they keep D01R's size grid.
 CRYSTAL_SIZE_GRID = D01R.CRYSTAL_SIZE_GRID  # um
@@ -123,7 +123,7 @@ def crystal_number_flow(solid_mass_flow: float, density: float) -> np.ndarray:
 
 
 def outlet_flow(tank, time_index: int = -1) -> SlurryFlow:
-    """D01R's discharge at one saved time, with D, E, J merged into one solid.
+    """D01R's discharge at one saved time, with D and E merged into one solid.
 
     Returns a SlurryFlow on D01R's grid: liquid mass flows [kg/s] and a
     crystal number flow [#/(um s)] whose composition and mixed density

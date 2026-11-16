@@ -11,7 +11,7 @@ The flowsheet is::
 ``D02R`` is the B wash dissolver, run as-is from ``Project work/D02R/D02R.py``
 (which itself solves R02R -> D01R -> F01R for its feed). Its outlet is taken
 at the final, steady time, so the filter sees exactly D02R's discharge:
-liquid, temperature and the real D, E and J crystals, merged into one mixed
+liquid, temperature and the real D and E crystals, merged into one mixed
 population by ``F01R.outlet_flow`` (D02R holds one solid phase per species,
 as D01R does).
 
@@ -50,7 +50,7 @@ from continuous_filter import ContinuousFilter, SlurryFlow  # noqa: E402
 DEFAULT_DATABASE_PATH = F01R.DEFAULT_DATABASE_PATH
 
 # ---------------------------------------------------------------- settings
-CRYSTAL_SPECIES = F01R.CRYSTAL_SPECIES  # ("D", "E", "J")
+CRYSTAL_SPECIES = F01R.CRYSTAL_SPECIES  # ("D", "E")
 CRYSTAL_SIZE_GRID = D02R.CRYSTAL_SIZE_GRID  # um, D02R's (= F01R's = D01R's)
 CRYSTAL_KV = D02R.CRYSTAL_KV
 

@@ -27,6 +27,9 @@ Files, in ``results/`` next to this script:
     flowsheet_map_cache.json    the solved streams and classes
     flowsheet_map.png           units, classes and stream phases
     flowsheet_stream_table.png  every stream by species and phase
+    *.svg, *.pdf                the same two figures with live, editable
+                                text (Inkscape, Illustrator, PowerPoint,
+                                Word: insert the SVG, then Convert to Shape)
 """
 
 from __future__ import annotations
@@ -113,8 +116,8 @@ def solve_flowsheet() -> dict:
         }
 
     # Dissolution rate constants k_d [um/s] of the units that dissolve.
-    dissolution = {"D01R": fs.D01R.DISSOLUTION, "D02R": fs.D02R.DISSOLUTION,
-                   "D03R": fs.D03R.DISSOLUTION}
+    # D02R has none (assumption A6).
+    dissolution = {"D01R": fs.D01R.DISSOLUTION, "D03R": fs.D03R.DISSOLUTION}
 
     units = {}
     for name, unit in cv.members.items():
@@ -170,15 +173,16 @@ def phase_label(record: dict) -> str:
     return "wet cake" if solid > liquid else "slurry"
 
 
-def dissolved_share(record: dict) -> dict[str, float]:
-    """For each crystallizing species, the share of it that is dissolved."""
+def product_dissolved(data: dict) -> dict[str, float]:
+    """For each solid phase D03R holds, the share of that species dissolved
+    in its product. Species D03R never sees as crystals (J) are left out."""
+    record = data["streams"]["D03R product"]
     out = {}
-    for name, solid in record["solid"].items():
+    for name in data["units"]["D03R"]["solids"]:
+        solid = record["solid"].get(name, 0.0)
         liquid = record["liquid"].get(name, 0.0)
-        out[name] = liquid / (liquid + solid)
-    for name in ("D", "E", "J"):
-        if name not in out and name in record["liquid"]:
-            out[name] = 1.0
+        if liquid + solid > 0:
+            out[name] = liquid / (liquid + solid)
     return dict(sorted(out.items()))
 
 
@@ -223,6 +227,9 @@ ASSUMPTIONS = [
     "crystallization happens in D01R.",
     "A5  W02H and W02R are each two unit ops, a dissolver vessel (D02H, "
     "D02R) and a filter link (F02H, F02R), drawn as one block.",
+    "A6  D02R's crystals pass through unchanged (no nucleation, growth or "
+    "dissolution): in ~55 mol/L B, c_sat ~1e-7 mol/L, so the wash could "
+    "dissolve ~5e-11 mol/s at most, and its liquor stays undersaturated.",
 ]
 
 
@@ -239,11 +246,11 @@ def find_warnings(data: dict) -> dict[str, str]:
                         f"({crystals / f_total:.0%} of its F); it should "
                         "stay liquid.")
 
-    short = {n: v for n, v in dissolved_share(streams["D03R product"]).items()
+    short = {n: v for n, v in product_dissolved(data).items()
              if v < D03R_DISSOLVED_TARGET}
     if short:
         out["D03R"] = ("D03R leaves " + percent_list(short) + " dissolved; L "
-                       "should dissolve D, E, J almost completely (retune "
+                       "should dissolve D and E almost completely (retune "
                        "SOLVENT_K_L or L_FLOW).")
 
     for block in WASH_STREAMS:
@@ -288,7 +295,7 @@ def print_summary(data: dict):
         print(f"{block} dissolves {wash_dissolved(streams, block):.2%} of "
               "the crystals fed to it")
     print("\nDissolved share in the D03R product: "
-          + percent_list(dissolved_share(streams["D03R product"])))
+          + percent_list(product_dissolved(data)))
     warnings = find_warnings(data)
     print("\nWarnings:" if warnings else "\nWarnings: none")
     for text in warnings.values():
@@ -537,10 +544,10 @@ def draw_map(data: dict):
     streams = data["streams"]
     system = data["system"]
     warnings = find_warnings(data)
-    fig, ax = plt.subplots(figsize=(27.5, 15.5))
+    fig, ax = plt.subplots(figsize=(27.5, 16.4))
     fig.patch.set_facecolor(SURFACE)
     ax.set_xlim(0, X_MAX)
-    ax.set_ylim(-4.5, 13.1)
+    ax.set_ylim(-5.5, 13.1)
     ax.axis("off")
 
     c1, c2, c3, c4, c5 = COLUMNS
@@ -582,7 +589,7 @@ def draw_map(data: dict):
     wash_box(ax, data, "W02R", c4, ROW_2)
     vessel_box(ax, data, "D03R", c5, ROW_2,
                ["product dissolved  "
-                + percent_list(dissolved_share(product))])
+                + percent_list(product_dissolved(data))])
 
     # A badge on each unit with a warning; the text is in the panel below.
     tags = {name: f"W{i}" for i, name in enumerate(warnings, start=1)}
@@ -665,7 +672,7 @@ def draw_map(data: dict):
     # ---- title and legend
     fig.suptitle(
         "Flowsheet phases and unit classes: D03R product is "
-        + percent_list(dissolved_share(product)) + " dissolved",
+        + percent_list(product_dissolved(data)) + " dissolved",
         fontsize=17, weight="bold", color=TEXT_PRIMARY, x=0.012, ha="left",
         y=0.99)
     ax.text(0.25, 12.8,
@@ -765,6 +772,27 @@ def draw_table(data: dict):
     return fig
 
 
+def save_figure(fig, png_path: Path, **kwargs):
+    """Save ``fig`` as PNG, plus SVG and PDF that keep text as text.
+
+    SVG writes each label as a <text> element in its font (svg.fonttype
+    "none"); PDF embeds the TrueType fonts (pdf.fonttype 42), so the text
+    stays selectable and editable rather than becoming outlines.
+    """
+    import matplotlib as mpl
+
+    fig.savefig(png_path, dpi=130, **kwargs)
+    with mpl.rc_context({"svg.fonttype": "none", "pdf.fonttype": 42}):
+        fig.savefig(png_path.with_suffix(".svg"), **kwargs)
+        fig.savefig(png_path.with_suffix(".pdf"), **kwargs)
+    # SVG collapses runs of spaces unless told not to; the cards use double
+    # spaces between species.
+    svg = png_path.with_suffix(".svg")
+    svg.write_text(svg.read_text(encoding="utf-8").replace(
+        "<svg ", '<svg xml:space="preserve" style="white-space: pre" ', 1),
+        encoding="utf-8")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--solve", action="store_true",
@@ -781,8 +809,8 @@ if __name__ == "__main__":
     print_summary(flowsheet)
     use_fonts()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    draw_map(flowsheet).savefig(MAP_PATH, dpi=130)
-    draw_table(flowsheet).savefig(TABLE_PATH, dpi=130, bbox_inches="tight")
+    save_figure(draw_map(flowsheet), MAP_PATH)
+    save_figure(draw_table(flowsheet), TABLE_PATH, bbox_inches="tight")
     print(f"\nFigures saved to {RESULTS_DIR}")
 
     if not args.no_show:

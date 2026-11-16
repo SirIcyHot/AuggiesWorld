@@ -10,10 +10,12 @@ The flowsheet is::
 charged with B and fed two streams: R02R's outlet (``r02r_feed`` solves
 ``R02R`` and takes its outlet at the final, steady state) and pure B as
 antisolvent. R02R runs in H, so its outlet holds no B. B lowers the
-solubility of R02R's three products D, E and J faster than it dilutes them,
-and each crystallizes as its own solid phase with its own population
-balance, nucleation, growth and dissolution kinetics. The R02R reactions
-are not carried into the tank: D01R only crystallizes.
+solubility of D and E faster than it dilutes them, and each crystallizes as
+its own solid phase with its own population balance, nucleation, growth and
+dissolution kinetics. J, R02R's third product, dissolves in B and stays in
+the liquid: it has no solid phase here, so it leaves with the mother liquor
+(Filtrate 2 in the flowsheet) apart from what the cake liquid carries on.
+The R02R reactions are not carried into the tank: D01R only crystallizes.
 
 Solubility of each crystallizing species i (mol/L), with B as antisolvent::
 
@@ -24,13 +26,9 @@ S0_i is the solubility in B-free liquid, i.e. in R02R's outlet. It was set
 and E (outlet ~0.27 and ~0.17 mol/L standalone against S0 0.0284 and
 0.01505), so its outlet arrives already supersaturated in D and E: solids
 would form in R02R, but the flowsheet assumes none do (all crystallization
-happens here). J (outlet ~0.036 mol/L, S0 0.0886) stays undersaturated
-until B is added. With K_B = 0.2 L/mol and 0.02 kg/s of antisolvent,
-D01R's steady [B] cuts every solubility far enough that ~100 % of the D
-and E and ~99 % of the J fed crystallizes (0.01 kg/s left ~4 % of J
-dissolved standalone and ~25 % in the coupled flowsheet, whose more
-dilute R02R outlet sits closer to saturation). Raise K_B or
-ANTISOLVENT_FLOW to crystallize more.
+happens here). With K_B = 0.2 L/mol and 0.02 kg/s of antisolvent, D01R's
+steady [B] cuts both solubilities far enough that ~100 % of the D and E fed
+crystallizes. Raise K_B or ANTISOLVENT_FLOW to crystallize more.
 
 The pure-B charge is far richer in B than the steady state, so the first
 solute to arrive meets a low solubility and crystallizes; those crystals
@@ -65,7 +63,7 @@ Run it with::
 Figures are written to ``results/`` next to this file:
 
     D01R_profiles.png      crystals held, saturation, fraction crystallized
-    D01R_csd.png           crystal size distribution of D, E and J at the end
+    D01R_csd.png           crystal size distribution of D and E at the end
     D01R_settings.png      the settings and initial conditions used
     D01R_mass_balance.png  inlet vs outlet species balance at the final time
 """
@@ -106,13 +104,15 @@ import R02R  # noqa: E402
 DB_PATH = R02R.DEFAULT_DATABASE_PATH
 
 # ---------------------------------------------------------------- settings
-CRYSTAL_SPECIES = ("D", "E", "J")
+# J is left out: it dissolves in B and stays liquid (see the module docstring).
+# F01R, D02R, F02R and D03R take their solid phases from this tuple.
+CRYSTAL_SPECIES = ("D", "E")
 SOLVENT_NAME = "B"  # the tank charge (R02R's solvent is H)
 ANTISOLVENT_NAME = "B"
 
 # Fresh antisolvent feed, pure ANTISOLVENT_NAME.
-# 0.02 kg/s, doubled from 0.01 to crystallize more D, E and J: J goes from
-# 95.8 % to 99.1 % crystallized standalone, D and E to ~100 %. Raising K_B
+# 0.02 kg/s, doubled from 0.01 (when J still crystallized here, to push it
+# from 95.8 % to 99.1 %); D and E crystallize ~100 % either way. Raising K_B
 # to 0.3 instead made scipy BDF fail in the start-up transient.
 ANTISOLVENT_FLOW = 2.0e-2  # kg/s
 ANTISOLVENT_TEMPERATURE = 25 + 273.15  # K
@@ -127,7 +127,7 @@ CRYSTALLIZER_DIAMETER = 0.2  # m
 # R02R outlet concentration; the current R02R outlet is supersaturated in D
 # and E (see the module docstring), and S0 is kept low so D01R crystallizes
 # nearly all of them in the more dilute coupled flowsheet too.
-SOLUBILITY_S0 = {"D": 0.0284, "E": 0.01505, "J": 0.0886}  # mol/L
+SOLUBILITY_S0 = {"D": 0.0284, "E": 0.01505}  # mol/L
 # L/mol: each 1 mol/L of B in the liquid multiplies every solubility by
 # exp(-K_B) = 0.82; at 0.01 kg/s of B the tank settled at ~19.4 mol/L B,
 # exp(-K_B * 19.4) = 0.021, so ~96 % crystallized; ANTISOLVENT_FLOW now
@@ -143,20 +143,23 @@ GROWTH = {name: (10.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
 # sigma = -1 (crystals in solute-free liquid). 50 um/s is still fast: a
 # 1 mm crystal dissolves in ~20 s at sigma = -1, against a ~0.8 h residence
 # time, so the tank still settles in the same number of residence times.
-# On the 10 um grid it puts the dissolution eigenvalues near k_d / dx ~5 /s;
+# On the 20 um grid it puts the dissolution eigenvalues near k_d / dx ~2.5 /s;
 # the old 5e5 um/s put them near 5e4 /s, which stalled unpreconditioned
 # GMRES in the coupled flowsheet.
 DISSOLUTION = {
     "D": (50.0, 0.0, 1.0),
     "E": (50.0, 0.0, 1.0),
-    "J": (50.0, 0.0, 1.0),
 }
 
 # um. Crystals that grow past the last cell leave the population balance
 # untracked; the report warns if that exceeds 1 % of the crystal mass. At
-# these settings 99.99 % of the crystal mass stays below ~1.4 mm (J, the
-# largest); the old 1-601 um grid lost up to 28 % of it.
-CRYSTAL_SIZE_GRID = np.arange(1.0, 2002.0, 10.0)
+# these settings 99.99 % of the crystal mass stayed below ~1.4 mm (J, the
+# largest, when it still crystallized here); the old 1-601 um grid lost up to 28 % of it. 20 um cells (101
+# per species, was 10 um and 201): only the crystal masses are used
+# downstream, not the size distribution, and the coarser grid halves the
+# states of D01R, D02R and D03R and doubles the time a crystal takes to
+# cross one cell in D03R, which set the flowsheet solver's step size.
+CRYSTAL_SIZE_GRID = np.arange(1.0, 2002.0, 20.0)
 CRYSTAL_KV = 1.0
 
 # The liquid settles in ~5 residence times; the crystal populations, which

@@ -23,10 +23,9 @@ def run():
                 D02R.final_balance(tank))
 
 
-def test_solubility_and_kinetics_are_d01rs():
+def test_solubility_is_d01rs():
     assert D02R.SOLUBILITY_S0 is D02R.D01R.SOLUBILITY_S0
     assert D02R.ANTISOLVENT_K_B == D02R.D01R.ANTISOLVENT_K_B
-    assert D02R.DISSOLUTION is D02R.D01R.DISSOLUTION
     assert D02R.SOLVENT_NAME == D02R.D01R.ANTISOLVENT_NAME == "B"
 
 
@@ -55,3 +54,12 @@ def test_mass_balance_closes(run):
     total = D02R.balance_rows(balance)[-1]
     _, cake_in, b_in, _, out, accumulated = total
     assert abs(cake_in + b_in - out - accumulated) < 1e-3 * (cake_in + b_in)
+
+
+
+
+def test_wash_has_no_phase_change():
+    for species in D02R.CRYSTAL_SPECIES:
+        for law in (D02R.NUCL_PRIM, D02R.NUCL_SEC, D02R.GROWTH,
+                    D02R.DISSOLUTION):
+            assert law[species][0] == 0.0

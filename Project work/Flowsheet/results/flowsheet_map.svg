@@ -1,0 +1,1790 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xml:space="preserve" style="white-space: pre" xmlns:xlink="http://www.w3.org/1999/xlink" width="1980pt" height="1180.8pt" viewBox="0 0 1980 1180.8" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-15T18:05:23.572274</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 1180.8 
+L 1980 1180.8 
+L 1980 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="line2d_1">
+    <path d="M 178.261875 163.217032 
+L 178.261875 215.019871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_2">
+    <path d="M 287.96625 163.217032 
+L 287.96625 215.019871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_3">
+    <path d="M 330.629062 293.943019 
+L 531.75375 293.943019 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_4">
+    <path d="M 330.629062 300.646916 
+L 531.75375 300.646916 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_5">
+    <path d="M 629.26875 163.217032 
+L 629.26875 215.019871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_6">
+    <path d="M 726.78375 293.943019 
+L 927.908437 293.943019 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_7">
+    <path d="M 726.78375 300.646916 
+L 927.908437 300.646916 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_8">
+    <path d="M 1028.775516 379.570065 
+L 1028.775516 396.634529 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_9">
+    <path d="M 1022.071359 379.570065 
+L 1022.071359 396.634529 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_10">
+    <path d="M 1122.938437 293.943019 
+L 1324.063125 293.943019 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_11">
+    <path d="M 1122.938437 300.646916 
+L 1324.063125 300.646916 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_12">
+    <path d="M 1421.578125 163.217032 
+L 1421.578125 215.019871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_13">
+    <path d="M 1424.930203 379.570065 
+L 1424.930203 396.634529 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_14">
+    <path d="M 1418.226047 379.570065 
+L 1418.226047 396.634529 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_15">
+    <path d="M 1519.093125 293.943019 
+L 1720.217812 293.943019 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_16">
+    <path d="M 1519.093125 300.646916 
+L 1720.217812 300.646916 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_17">
+    <path d="M 1817.732812 163.217032 
+L 1817.732812 215.019871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_18">
+    <path d="M 1821.084891 379.570065 
+L 1821.084891 396.634529 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_19">
+    <path d="M 1814.380734 379.570065 
+L 1814.380734 396.634529 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_20">
+    <path d="M 1821.084891 470.986839 
+L 1821.084891 492.622142 
+L 702.405 492.622142 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_21">
+    <path d="M 1814.380734 470.986839 
+L 1814.380734 485.918245 
+L 702.405 485.918245 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_22">
+    <path d="M 458.6175 489.270194 
+L 287.96625 489.270194 
+L 287.96625 592.875871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_23">
+    <path d="M 166.0725 574.592516 
+L 166.0725 592.875871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_24">
+    <path d="M 330.629062 675.150968 
+L 531.75375 675.150968 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_25">
+    <path d="M 629.26875 786.679432 
+L 629.26875 757.426065 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_26">
+    <path d="M 726.78375 671.799019 
+L 927.908437 671.799019 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_27">
+    <path d="M 726.78375 678.502916 
+L 927.908437 678.502916 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_28">
+    <path d="M 1028.775516 757.426065 
+L 1028.775516 786.679432 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_29">
+    <path d="M 1022.071359 757.426065 
+L 1022.071359 786.679432 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_30">
+    <path d="M 1122.938437 671.799019 
+L 1324.063125 671.799019 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_31">
+    <path d="M 1122.938437 678.502916 
+L 1324.063125 678.502916 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_32">
+    <path d="M 1421.578125 574.592516 
+L 1421.578125 592.875871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_33">
+    <path d="M 1424.930203 757.426065 
+L 1424.930203 786.679432 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_34">
+    <path d="M 1418.226047 757.426065 
+L 1418.226047 786.679432 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_35">
+    <path d="M 1519.093125 671.799019 
+L 1720.217812 671.799019 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_36">
+    <path d="M 1519.093125 678.502916 
+L 1720.217812 678.502916 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_37">
+    <path d="M 1817.732812 574.592516 
+L 1817.732812 592.875871 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_38">
+    <path d="M 1821.084891 757.426065 
+L 1821.084891 786.679432 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #2a78d6; stroke-width: 2.2"/>
+   </g>
+   <g id="line2d_39">
+    <path d="M 1814.380734 757.426065 
+L 1814.380734 786.679432 
+" clip-path="url(#p3669d420c1)" style="fill: none; stroke: #eb6834; stroke-width: 2.2"/>
+   </g>
+   <g id="patch_2">
+    <path d="M 140.474813 379.570065 
+L 325.753312 379.570065 
+Q 330.629062 379.570065 330.629062 374.694503 
+L 330.629062 219.895432 
+Q 330.629062 215.019871 325.753312 215.019871 
+L 140.474813 215.019871 
+Q 135.599063 215.019871 135.599063 219.895432 
+L 135.599063 374.694503 
+Q 135.599063 379.570065 140.474813 379.570065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #f7f6f3; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 536.6295 379.570065 
+L 721.908 379.570065 
+Q 726.78375 379.570065 726.78375 374.694503 
+L 726.78375 219.895432 
+Q 726.78375 215.019871 721.908 215.019871 
+L 536.6295 215.019871 
+Q 531.75375 215.019871 531.75375 219.895432 
+L 531.75375 374.694503 
+Q 531.75375 379.570065 536.6295 379.570065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #f7f6f3; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 932.784187 379.570065 
+L 1118.062688 379.570065 
+Q 1122.938437 379.570065 1122.938437 374.694503 
+L 1122.938437 219.895432 
+Q 1122.938437 215.019871 1118.062688 215.019871 
+L 932.784187 215.019871 
+Q 927.908437 215.019871 927.908437 219.895432 
+L 927.908437 374.694503 
+Q 927.908437 379.570065 932.784187 379.570065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke-dasharray: 5.2,2.6; stroke-dashoffset: 0; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 1328.938875 379.570065 
+L 1514.217375 379.570065 
+Q 1519.093125 379.570065 1519.093125 374.694503 
+L 1519.093125 219.895432 
+Q 1519.093125 215.019871 1514.217375 215.019871 
+L 1328.938875 215.019871 
+Q 1324.063125 215.019871 1324.063125 219.895432 
+L 1324.063125 374.694503 
+Q 1324.063125 379.570065 1328.938875 379.570065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #f7f6f3; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 1725.093562 379.570065 
+L 1910.372062 379.570065 
+Q 1915.247812 379.570065 1915.247812 374.694503 
+L 1915.247812 219.895432 
+Q 1915.247812 215.019871 1910.372062 215.019871 
+L 1725.093562 215.019871 
+Q 1720.217812 215.019871 1720.217812 219.895432 
+L 1720.217812 374.694503 
+Q 1720.217812 379.570065 1725.093562 379.570065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #f7f6f3; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 140.474813 757.426065 
+L 325.753312 757.426065 
+Q 330.629062 757.426065 330.629062 752.550503 
+L 330.629062 597.751432 
+Q 330.629062 592.875871 325.753312 592.875871 
+L 140.474813 592.875871 
+Q 135.599063 592.875871 135.599063 597.751432 
+L 135.599063 752.550503 
+Q 135.599063 757.426065 140.474813 757.426065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #f7f6f3; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 536.6295 757.426065 
+L 721.908 757.426065 
+Q 726.78375 757.426065 726.78375 752.550503 
+L 726.78375 597.751432 
+Q 726.78375 592.875871 721.908 592.875871 
+L 536.6295 592.875871 
+Q 531.75375 592.875871 531.75375 597.751432 
+L 531.75375 752.550503 
+Q 531.75375 757.426065 536.6295 757.426065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #f7f6f3; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 932.784187 757.426065 
+L 1118.062688 757.426065 
+Q 1122.938437 757.426065 1122.938437 752.550503 
+L 1122.938437 597.751432 
+Q 1122.938437 592.875871 1118.062688 592.875871 
+L 932.784187 592.875871 
+Q 927.908437 592.875871 927.908437 597.751432 
+L 927.908437 752.550503 
+Q 927.908437 757.426065 932.784187 757.426065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke-dasharray: 5.2,2.6; stroke-dashoffset: 0; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 1328.938875 757.426065 
+L 1514.217375 757.426065 
+Q 1519.093125 757.426065 1519.093125 752.550503 
+L 1519.093125 597.751432 
+Q 1519.093125 592.875871 1514.217375 592.875871 
+L 1328.938875 592.875871 
+Q 1324.063125 592.875871 1324.063125 597.751432 
+L 1324.063125 752.550503 
+Q 1324.063125 757.426065 1328.938875 757.426065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #f7f6f3; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 1725.093562 757.426065 
+L 1910.372062 757.426065 
+Q 1915.247812 757.426065 1915.247812 752.550503 
+L 1915.247812 597.751432 
+Q 1915.247812 592.875871 1910.372062 592.875871 
+L 1725.093562 592.875871 
+Q 1720.217812 592.875871 1720.217812 597.751432 
+L 1720.217812 752.550503 
+Q 1720.217812 757.426065 1725.093562 757.426065 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #f7f6f3; stroke: #52514e; stroke-width: 1.3; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 178.261875 163.217032 
+Q 178.261875 189.118452 178.261875 215.019871 
+" style="fill: none"/>
+    <path d="M 181.661875 208.219871 
+L 178.261875 215.019871 
+L 174.861875 208.219871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 287.96625 163.217032 
+Q 287.96625 189.118452 287.96625 215.019871 
+" style="fill: none"/>
+    <path d="M 291.36625 208.219871 
+L 287.96625 215.019871 
+L 284.56625 208.219871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_14">
+    <path d="M 330.629062 297.294968 
+Q 431.191406 297.294968 531.75375 297.294968 
+" style="fill: none"/>
+    <path d="M 524.95375 293.894968 
+L 531.75375 297.294968 
+L 524.95375 300.694968 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_15">
+    <path d="M 629.26875 163.217032 
+Q 629.26875 189.118452 629.26875 215.019871 
+" style="fill: none"/>
+    <path d="M 632.66875 208.219871 
+L 629.26875 215.019871 
+L 625.86875 208.219871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_16">
+    <path d="M 726.78375 297.294968 
+Q 827.346094 297.294968 927.908437 297.294968 
+" style="fill: none"/>
+    <path d="M 921.108438 293.894968 
+L 927.908437 297.294968 
+L 921.108438 300.694968 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_17">
+    <path d="M 1025.423438 379.570065 
+Q 1025.423438 388.102297 1025.423438 396.634529 
+" style="fill: none"/>
+    <path d="M 1028.823438 389.834529 
+L 1025.423438 396.634529 
+L 1022.023438 389.834529 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_18">
+    <path d="M 1122.938437 297.294968 
+Q 1223.500781 297.294968 1324.063125 297.294968 
+" style="fill: none"/>
+    <path d="M 1317.263125 293.894968 
+L 1324.063125 297.294968 
+L 1317.263125 300.694968 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_19">
+    <path d="M 1421.578125 163.217032 
+Q 1421.578125 189.118452 1421.578125 215.019871 
+" style="fill: none"/>
+    <path d="M 1424.978125 208.219871 
+L 1421.578125 215.019871 
+L 1418.178125 208.219871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_20">
+    <path d="M 1421.578125 379.570065 
+Q 1421.578125 388.102297 1421.578125 396.634529 
+" style="fill: none"/>
+    <path d="M 1424.978125 389.834529 
+L 1421.578125 396.634529 
+L 1418.178125 389.834529 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_21">
+    <path d="M 1519.093125 297.294968 
+Q 1619.655469 297.294968 1720.217812 297.294968 
+" style="fill: none"/>
+    <path d="M 1713.417812 293.894968 
+L 1720.217812 297.294968 
+L 1713.417812 300.694968 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_22">
+    <path d="M 1817.732812 163.217032 
+Q 1817.732812 189.118452 1817.732812 215.019871 
+" style="fill: none"/>
+    <path d="M 1821.132812 208.219871 
+L 1817.732812 215.019871 
+L 1814.332812 208.219871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_23">
+    <path d="M 1817.732812 379.570065 
+Q 1817.732812 388.102297 1817.732812 396.634529 
+" style="fill: none"/>
+    <path d="M 1821.132812 389.834529 
+L 1817.732812 396.634529 
+L 1814.332812 389.834529 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_24">
+    <path d="M 287.96625 489.270194 
+Q 287.96625 541.073032 287.96625 592.875871 
+" style="fill: none"/>
+    <path d="M 291.36625 586.075871 
+L 287.96625 592.875871 
+L 284.56625 586.075871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_25">
+    <path d="M 166.0725 574.592516 
+Q 166.0725 583.734194 166.0725 592.875871 
+" style="fill: none"/>
+    <path d="M 169.4725 586.075871 
+L 166.0725 592.875871 
+L 162.6725 586.075871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_26">
+    <path d="M 330.629062 675.150968 
+Q 431.191406 675.150968 531.75375 675.150968 
+" style="fill: none"/>
+    <path d="M 524.95375 671.750968 
+L 531.75375 675.150968 
+L 524.95375 678.550968 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_27">
+    <path d="M 629.26875 786.679432 
+Q 629.26875 772.052748 629.26875 757.426065 
+" style="fill: none"/>
+    <path d="M 625.86875 764.226065 
+L 629.26875 757.426065 
+L 632.66875 764.226065 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_28">
+    <path d="M 726.78375 675.150968 
+Q 827.346094 675.150968 927.908437 675.150968 
+" style="fill: none"/>
+    <path d="M 921.108438 671.750968 
+L 927.908437 675.150968 
+L 921.108438 678.550968 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_29">
+    <path d="M 1025.423438 757.426065 
+Q 1025.423438 772.052748 1025.423438 786.679432 
+" style="fill: none"/>
+    <path d="M 1028.823438 779.879432 
+L 1025.423438 786.679432 
+L 1022.023438 779.879432 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_30">
+    <path d="M 1122.938437 675.150968 
+Q 1223.500781 675.150968 1324.063125 675.150968 
+" style="fill: none"/>
+    <path d="M 1317.263125 671.750968 
+L 1324.063125 675.150968 
+L 1317.263125 678.550968 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_31">
+    <path d="M 1421.578125 574.592516 
+Q 1421.578125 583.734194 1421.578125 592.875871 
+" style="fill: none"/>
+    <path d="M 1424.978125 586.075871 
+L 1421.578125 592.875871 
+L 1418.178125 586.075871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_32">
+    <path d="M 1421.578125 757.426065 
+Q 1421.578125 772.052748 1421.578125 786.679432 
+" style="fill: none"/>
+    <path d="M 1424.978125 779.879432 
+L 1421.578125 786.679432 
+L 1418.178125 779.879432 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_33">
+    <path d="M 1519.093125 675.150968 
+Q 1619.655469 675.150968 1720.217812 675.150968 
+" style="fill: none"/>
+    <path d="M 1713.417812 671.750968 
+L 1720.217812 675.150968 
+L 1713.417812 678.550968 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="patch_34">
+    <path d="M 1817.732812 574.592516 
+Q 1817.732812 583.734194 1817.732812 592.875871 
+" style="fill: none"/>
+    <path d="M 1821.132812 586.075871 
+L 1817.732812 592.875871 
+L 1814.332812 586.075871 
+z
+" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_35">
+    <path d="M 1817.732812 757.426065 
+Q 1817.732812 772.052748 1817.732812 786.679432 
+" style="fill: none"/>
+    <path d="M 1821.132812 779.879432 
+L 1817.732812 786.679432 
+L 1814.332812 779.879432 
+z
+" style="fill: #0b0b0b"/>
+   </g>
+   <g id="text_1">
+    <text style="font-size: 10.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="35.036719" y="62.384831" transform="rotate(-0 35.036719 62.384831)">All vessels solved together in one ConcurrentVessel (1109 states, AssimuloBackend), flows at t = 16 h. Card contents in g/s. Classes read from the solved objects.</text>
+   </g>
+   <g id="text_2">
+    <text style="font-weight: 700; font-size: 11.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="35.036719" y="939.596939" transform="rotate(-0 35.036719 939.596939)">Assumptions</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 967.329394)">A1  The solid F that D01H passes on as slurry dissolves quickly and completely in R02R's liquid, then reacts.</text>
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 979.58037)">      R02R has no solid phase, so the D01H -&gt; R02R link turns crystal mass into dissolved F, conserving mass.</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 1005.095462)">A2  F01H, F02H, F01R and F02R are steady-state splits evaluated inside the links (ContinuousFilter settings, no</text>
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 1017.346439)">      holdup), not vessels. F02H and F02R use the settings of F01H and F01R.</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="35.036719" y="1042.881062" transform="rotate(-0 35.036719 1042.881062)">A3  The solubility S0 of D02H and D01H is fixed at CR02H's design mother liquor (Flowsheet.CAKE_LIQUID_DESIGN).</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 1065.450064)">A4  R02R's outlet is all liquid. D, E and J would start to come out of solution in R02R, but the model assumes</text>
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 1077.701041)">      no solids form there; all crystallization happens in D01R.</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 1103.216133)">A5  W02H and W02R are each two unit ops, a dissolver vessel (D02H, D02R) and a filter link (F02H, F02R), drawn</text>
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 1116.463204)">      as one block.</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 1141.001733)">A6  D02R's crystals pass through unchanged (no nucleation, growth or dissolution): in ~55 mol/L B, c_sat ~1e-7</text>
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(35.036719 1153.272241)">      mol/L, so the wash could dissolve ~5e-11 mol/s at most, and its liquor stays undersaturated.</text>
+   </g>
+   <g id="text_9">
+    <text style="font-weight: 700; font-size: 11.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #c62f2f" x="1010.186719" y="939.596939" transform="rotate(-0 1010.186719 939.596939)">WARNINGS</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 10px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1010.186719" y="967.309862" transform="rotate(-0 1010.186719 967.309862)">W1  CR01H crystallizes 0.286 g/s of F (80% of its F); it should stay liquid.</text>
+   </g>
+   <g id="patch_36">
+    <path d="M 35.036719 163.217032 
+L 217.877344 163.217032 
+L 217.877344 88.864723 
+L 35.036719 88.864723 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_37">
+    <path d="M 227.019375 163.217032 
+L 409.86 163.217032 
+L 409.86 88.864723 
+L 227.019375 88.864723 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_38">
+    <path d="M 339.771094 285.106065 
+L 522.611719 285.106065 
+L 522.611719 210.753755 
+L 339.771094 210.753755 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_39">
+    <path d="M 537.848437 163.217032 
+L 720.689062 163.217032 
+L 720.689062 88.864723 
+L 537.848437 88.864723 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_40">
+    <path d="M 735.925781 285.106065 
+L 918.766406 285.106065 
+L 918.766406 210.753755 
+L 735.925781 210.753755 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_41">
+    <path d="M 934.003125 470.986839 
+L 1116.84375 470.986839 
+L 1116.84375 396.634529 
+L 934.003125 396.634529 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_42">
+    <path d="M 1132.080469 285.106065 
+L 1314.921094 285.106065 
+L 1314.921094 210.753755 
+L 1132.080469 210.753755 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_43">
+    <path d="M 1330.157812 163.217032 
+L 1512.998437 163.217032 
+L 1512.998437 88.864723 
+L 1330.157812 88.864723 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_44">
+    <path d="M 1330.157812 470.986839 
+L 1512.998437 470.986839 
+L 1512.998437 396.634529 
+L 1330.157812 396.634529 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_45">
+    <path d="M 1528.235156 285.106065 
+L 1711.075781 285.106065 
+L 1711.075781 210.753755 
+L 1528.235156 210.753755 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_46">
+    <path d="M 1726.3125 163.217032 
+L 1909.153125 163.217032 
+L 1909.153125 88.864723 
+L 1726.3125 88.864723 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_47">
+    <path d="M 1726.3125 470.986839 
+L 1909.153125 470.986839 
+L 1909.153125 396.634529 
+L 1726.3125 396.634529 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_48">
+    <path d="M 35.036719 574.592516 
+L 217.877344 574.592516 
+L 217.877344 500.240206 
+L 35.036719 500.240206 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_49">
+    <path d="M 339.771094 662.962065 
+L 522.611719 662.962065 
+L 522.611719 588.609755 
+L 339.771094 588.609755 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_50">
+    <path d="M 537.848437 861.031742 
+L 720.689062 861.031742 
+L 720.689062 786.679432 
+L 537.848437 786.679432 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_51">
+    <path d="M 735.925781 662.962065 
+L 918.766406 662.962065 
+L 918.766406 588.609755 
+L 735.925781 588.609755 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_52">
+    <path d="M 934.003125 861.031742 
+L 1116.84375 861.031742 
+L 1116.84375 786.679432 
+L 934.003125 786.679432 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_53">
+    <path d="M 1132.080469 662.962065 
+L 1314.921094 662.962065 
+L 1314.921094 588.609755 
+L 1132.080469 588.609755 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_54">
+    <path d="M 1330.157812 574.592516 
+L 1512.998437 574.592516 
+L 1512.998437 500.240206 
+L 1330.157812 500.240206 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_55">
+    <path d="M 1330.157812 861.031742 
+L 1512.998437 861.031742 
+L 1512.998437 786.679432 
+L 1330.157812 786.679432 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_56">
+    <path d="M 1528.235156 662.962065 
+L 1711.075781 662.962065 
+L 1711.075781 588.609755 
+L 1528.235156 588.609755 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_57">
+    <path d="M 1726.3125 574.592516 
+L 1909.153125 574.592516 
+L 1909.153125 500.240206 
+L 1726.3125 500.240206 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_58">
+    <path d="M 1726.3125 861.031742 
+L 1909.153125 861.031742 
+L 1909.153125 786.679432 
+L 1726.3125 786.679432 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #ffffff; stroke: #e5e4e0; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_11">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="142.912688" y="233.372141" transform="rotate(-0 142.912688 233.372141)">CR01H</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="142.912688" y="249.582261" transform="rotate(-0 142.912688 249.582261)">reactive crystallizer</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="142.912688" y="268.209261" transform="rotate(-0 142.912688 268.209261)">class</text>
+   </g>
+   <g id="text_14">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="142.912688" y="279.879734" transform="rotate(-0 142.912688 279.879734)">ContinuousReactiveCrystallizer</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="142.912688" y="291.801694" transform="rotate(-0 142.912688 291.801694)">PharmaPy.Reactive_Crystallizers</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="142.912688" y="309.334497" transform="rotate(-0 142.912688 309.334497)">holds: liquid + solid F</text>
+   </g>
+   <g id="text_17">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="539.067375" y="233.372141" transform="rotate(-0 539.067375 233.372141)">CR02H</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="539.067375" y="249.582261" transform="rotate(-0 539.067375 249.582261)">reactive crystallizer, A push</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="539.067375" y="268.209261" transform="rotate(-0 539.067375 268.209261)">class</text>
+   </g>
+   <g id="text_20">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="539.067375" y="279.879734" transform="rotate(-0 539.067375 279.879734)">ContinuousReactiveCrystallizer</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="539.067375" y="291.801694" transform="rotate(-0 539.067375 291.801694)">PharmaPy.Reactive_Crystallizers</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="539.067375" y="303.990597" transform="rotate(-0 539.067375 303.990597)">+ SlurryFeedMassFlow</text>
+   </g>
+   <g id="text_23">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="539.067375" y="321.5234" transform="rotate(-0 539.067375 321.5234)">holds: liquid + solid F</text>
+   </g>
+   <g id="text_24">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="935.222062" y="233.372141" transform="rotate(-0 935.222062 233.372141)">F01H</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="935.222062" y="249.582593" transform="rotate(-0 935.222062 249.582593)">filter</text>
+   </g>
+   <g id="text_26">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="935.222062" y="268.209261" transform="rotate(-0 935.222062 268.209261)">class</text>
+   </g>
+   <g id="text_27">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="935.222062" y="279.879734" transform="rotate(-0 935.222062 279.879734)">FilterCakeInlet</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="935.222062" y="291.801694" transform="rotate(-0 935.222062 291.801694)">Flowsheet (link coupling, no states)</text>
+   </g>
+   <g id="text_29">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="935.222062" y="303.990597" transform="rotate(-0 935.222062 303.990597)">settings: ContinuousFilter</text>
+   </g>
+   <g id="text_30">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="935.222062" y="321.523736" transform="rotate(-0 935.222062 321.523736)">CR02H → D02H link</text>
+   </g>
+   <g id="text_31">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="935.222062" y="336.759865" transform="rotate(-0 935.222062 336.759865)">solids loss 1%, cake LOD 15%</text>
+   </g>
+   <g id="text_32">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="233.372141" transform="rotate(-0 1331.37675 233.372141)">W02H</text>
+   </g>
+   <g id="text_33">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1331.37675" y="249.56566" transform="rotate(-0 1331.37675 249.56566)">wash: D02H dissolver (H) + F02H filter</text>
+   </g>
+   <g id="text_34">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1331.37675" y="268.209261" transform="rotate(-0 1331.37675 268.209261)">class</text>
+   </g>
+   <g id="text_35">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="279.879734" transform="rotate(-0 1331.37675 279.879734)">D02H ContinuousCrystallizer</text>
+   </g>
+   <g id="text_36">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1331.37675" y="291.801694" transform="rotate(-0 1331.37675 291.801694)">PharmaPy.Crystallizers_Refactored</text>
+   </g>
+   <g id="text_37">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1331.37675" y="303.990597" transform="rotate(-0 1331.37675 303.990597)">+ SlurryFeedMassFlow</text>
+   </g>
+   <g id="text_38">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="316.446444" transform="rotate(-0 1331.37675 316.446444)">F02H FilterCakeInlet</text>
+   </g>
+   <g id="text_39">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1331.37675" y="328.368404" transform="rotate(-0 1331.37675 328.368404)">link: solids loss 1%, cake LOD 15%</text>
+   </g>
+   <g id="text_40">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="345.901206" transform="rotate(-0 1331.37675 345.901206)">D02H holds liquid + solid F</text>
+   </g>
+   <g id="text_41">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="361.178992" transform="rotate(-0 1331.37675 361.178992)">product: dissolves 0.1% of crystals fed</text>
+   </g>
+   <g id="text_42">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1727.531437" y="233.372141" transform="rotate(-0 1727.531437 233.372141)">D01H</text>
+   </g>
+   <g id="text_43">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1727.531437" y="249.56566" transform="rotate(-0 1727.531437 249.56566)">dissolver (H)</text>
+   </g>
+   <g id="text_44">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1727.531437" y="268.209261" transform="rotate(-0 1727.531437 268.209261)">class</text>
+   </g>
+   <g id="text_45">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="1727.531437" y="279.879734" transform="rotate(-0 1727.531437 279.879734)">ContinuousCrystallizer</text>
+   </g>
+   <g id="text_46">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1727.531437" y="291.801694" transform="rotate(-0 1727.531437 291.801694)">PharmaPy.Crystallizers_Refactored</text>
+   </g>
+   <g id="text_47">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1727.531437" y="303.990597" transform="rotate(-0 1727.531437 303.990597)">+ SlurryFeedMassFlow</text>
+   </g>
+   <g id="text_48">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1727.531437" y="321.5234" transform="rotate(-0 1727.531437 321.5234)">holds: liquid + solid F</text>
+   </g>
+   <g id="text_49">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="142.912688" y="611.228141" transform="rotate(-0 142.912688 611.228141)">R02R</text>
+   </g>
+   <g id="text_50">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="142.912688" y="627.438261" transform="rotate(-0 142.912688 627.438261)">jacketed CSTR, liquid only</text>
+   </g>
+   <g id="text_51">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="142.912688" y="646.065261" transform="rotate(-0 142.912688 646.065261)">class</text>
+   </g>
+   <g id="text_52">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="142.912688" y="657.735734" transform="rotate(-0 142.912688 657.735734)">ContinuousReactor</text>
+   </g>
+   <g id="text_53">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="142.912688" y="669.657694" transform="rotate(-0 142.912688 669.657694)">PharmaPy.Reactors_Refactored</text>
+   </g>
+   <g id="text_54">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="142.912688" y="681.846597" transform="rotate(-0 142.912688 681.846597)">run as R02R.BalanceRecordingReactor</text>
+   </g>
+   <g id="text_55">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="142.912688" y="699.3794" transform="rotate(-0 142.912688 699.3794)">holds: liquid only</text>
+   </g>
+   <g id="text_56">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="142.912688" y="714.615865" transform="rotate(-0 142.912688 714.615865)">ASSUMPTION A4: no solids form here</text>
+   </g>
+   <g id="text_57">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="539.067375" y="611.228141" transform="rotate(-0 539.067375 611.228141)">D01R</text>
+   </g>
+   <g id="text_58">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="539.067375" y="627.42166" transform="rotate(-0 539.067375 627.42166)">antisolvent crystallizer (B)</text>
+   </g>
+   <g id="text_59">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="539.067375" y="646.065261" transform="rotate(-0 539.067375 646.065261)">class</text>
+   </g>
+   <g id="text_60">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="539.067375" y="657.735734" transform="rotate(-0 539.067375 657.735734)">ContinuousCrystallizer</text>
+   </g>
+   <g id="text_61">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="539.067375" y="669.657694" transform="rotate(-0 539.067375 669.657694)">PharmaPy.Crystallizers_Refactored</text>
+   </g>
+   <g id="text_62">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="539.067375" y="687.190497" transform="rotate(-0 539.067375 687.190497)">holds: liquid + 2 solid phases D | E</text>
+   </g>
+   <g id="text_63">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="539.067375" y="702.426626" transform="rotate(-0 539.067375 702.426626)">dissolution k_d 50 µm/s</text>
+   </g>
+   <g id="text_64">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="935.222062" y="611.228141" transform="rotate(-0 935.222062 611.228141)">F01R</text>
+   </g>
+   <g id="text_65">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="935.222062" y="627.438593" transform="rotate(-0 935.222062 627.438593)">filter</text>
+   </g>
+   <g id="text_66">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="935.222062" y="646.065261" transform="rotate(-0 935.222062 646.065261)">class</text>
+   </g>
+   <g id="text_67">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="935.222062" y="657.735734" transform="rotate(-0 935.222062 657.735734)">FilterCakeInlet</text>
+   </g>
+   <g id="text_68">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="935.222062" y="669.657694" transform="rotate(-0 935.222062 669.657694)">Flowsheet (link coupling, no states)</text>
+   </g>
+   <g id="text_69">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="935.222062" y="681.846597" transform="rotate(-0 935.222062 681.846597)">settings: ContinuousFilter</text>
+   </g>
+   <g id="text_70">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="935.222062" y="699.379736" transform="rotate(-0 935.222062 699.379736)">D01R → D02R link</text>
+   </g>
+   <g id="text_71">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="935.222062" y="714.615865" transform="rotate(-0 935.222062 714.615865)">solids loss 1%, cake LOD 30%</text>
+   </g>
+   <g id="text_72">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="611.228141" transform="rotate(-0 1331.37675 611.228141)">W02R</text>
+   </g>
+   <g id="text_73">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1331.37675" y="627.42166" transform="rotate(-0 1331.37675 627.42166)">wash: D02R dissolver (B) + F02R filter</text>
+   </g>
+   <g id="text_74">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1331.37675" y="646.065261" transform="rotate(-0 1331.37675 646.065261)">class</text>
+   </g>
+   <g id="text_75">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="657.735734" transform="rotate(-0 1331.37675 657.735734)">D02R ContinuousCrystallizer</text>
+   </g>
+   <g id="text_76">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1331.37675" y="669.657694" transform="rotate(-0 1331.37675 669.657694)">PharmaPy.Crystallizers_Refactored</text>
+   </g>
+   <g id="text_77">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1331.37675" y="681.846597" transform="rotate(-0 1331.37675 681.846597)">+ SlurryFeedMassFlow</text>
+   </g>
+   <g id="text_78">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="694.302444" transform="rotate(-0 1331.37675 694.302444)">F02R FilterCakeInlet</text>
+   </g>
+   <g id="text_79">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1331.37675" y="706.224404" transform="rotate(-0 1331.37675 706.224404)">link: solids loss 1%, cake LOD 30%</text>
+   </g>
+   <g id="text_80">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="723.757206" transform="rotate(-0 1331.37675 723.757206)">D02R holds liquid + solid D | E</text>
+   </g>
+   <g id="text_81">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1331.37675" y="739.034992" transform="rotate(-0 1331.37675 739.034992)">product: dissolves 0.0% of crystals fed</text>
+   </g>
+   <g id="text_82">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1727.531437" y="611.228141" transform="rotate(-0 1727.531437 611.228141)">D03R</text>
+   </g>
+   <g id="text_83">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1727.531437" y="627.42166" transform="rotate(-0 1727.531437 627.42166)">dissolver (L)</text>
+   </g>
+   <g id="text_84">
+    <text style="font-size: 7.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1727.531437" y="646.065261" transform="rotate(-0 1727.531437 646.065261)">class</text>
+   </g>
+   <g id="text_85">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #0b0b0b" x="1727.531437" y="657.735734" transform="rotate(-0 1727.531437 657.735734)">ContinuousCrystallizer</text>
+   </g>
+   <g id="text_86">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1727.531437" y="669.657694" transform="rotate(-0 1727.531437 669.657694)">PharmaPy.Crystallizers_Refactored</text>
+   </g>
+   <g id="text_87">
+    <text style="font-size: 7.5px; font-family: 'Consolas', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #52514e" x="1727.531437" y="681.846597" transform="rotate(-0 1727.531437 681.846597)">+ SlurryFeedMassFlow</text>
+   </g>
+   <g id="text_88">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1727.531437" y="699.3794" transform="rotate(-0 1727.531437 699.3794)">holds: liquid + 2 solid phases D | E</text>
+   </g>
+   <g id="text_89">
+    <text style="font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1727.531437" y="714.615529" transform="rotate(-0 1727.531437 714.615529)">dissolution k_d 10 µm/s</text>
+   </g>
+   <g id="text_90">
+    <text style="font-weight: 700; font-size: 8.6px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1727.531437" y="729.893314" transform="rotate(-0 1727.531437 729.893314)">product dissolved  D 100%  E 99%</text>
+   </g>
+   <g id="text_91">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="39.912469" y="101.799568" transform="rotate(-0 39.912469 101.799568)">Feed A</text>
+   </g>
+   <g id="text_92">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="39.912469" y="115.504326" transform="rotate(-0 39.912469 115.504326)">liquid · 1.03 g/s · 293 K</text>
+   </g>
+   <g id="patch_59">
+    <path d="M 39.912469 127.259768 
+L 213.001594 127.259768 
+L 213.001594 121.774761 
+L 39.912469 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_60">
+    <path d="M 213.001594 127.259768 
+L 213.001594 127.259768 
+L 213.001594 121.774761 
+L 213.001594 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_93">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="39.912469" y="140.491578" transform="rotate(-0 39.912469 140.491578)">liq  B 0.81  A 0.22</text>
+   </g>
+   <g id="text_94">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="39.912469" y="153.899703" transform="rotate(-0 39.912469 153.899703)">sol  -</text>
+   </g>
+   <g id="text_95">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="231.895125" y="101.799568" transform="rotate(-0 231.895125 101.799568)">Feed C</text>
+   </g>
+   <g id="text_96">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="231.895125" y="115.504326" transform="rotate(-0 231.895125 115.504326)">liquid · 0.207 g/s · 293 K</text>
+   </g>
+   <g id="patch_61">
+    <path d="M 231.895125 127.259768 
+L 404.98425 127.259768 
+L 404.98425 121.774761 
+L 231.895125 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_62">
+    <path d="M 404.98425 127.259768 
+L 404.98425 127.259768 
+L 404.98425 121.774761 
+L 404.98425 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_97">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="231.895125" y="140.491578" transform="rotate(-0 231.895125 140.491578)">liq  C 0.19  B 0.013</text>
+   </g>
+   <g id="text_98">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="231.895125" y="153.899703" transform="rotate(-0 231.895125 153.899703)">sol  -</text>
+   </g>
+   <g id="text_99">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="344.646844" y="223.642399" transform="rotate(-0 344.646844 223.642399)">CR01H out</text>
+   </g>
+   <g id="text_100">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="344.646844" y="237.393358" transform="rotate(-0 344.646844 237.393358)">slurry · 1.23 g/s · 286 K</text>
+   </g>
+   <g id="patch_63">
+    <path d="M 344.646844 249.1488 
+L 475.906739 249.1488 
+L 475.906739 243.663794 
+L 344.646844 243.663794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_64">
+    <path d="M 477.735146 249.1488 
+L 517.735969 249.1488 
+L 517.735969 243.663794 
+L 477.735146 243.663794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_101">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="344.646844" y="262.38061" transform="rotate(-0 344.646844 262.38061)">liq  B 0.82  F 0.071  A 0.046</text>
+   </g>
+   <g id="text_102">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="344.646844" y="275.788735" transform="rotate(-0 344.646844 275.788735)">sol  F 0.29</text>
+   </g>
+   <g id="text_103">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="542.724187" y="101.799197" transform="rotate(-0 542.724187 101.799197)">A push</text>
+   </g>
+   <g id="text_104">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="542.724187" y="115.504326" transform="rotate(-0 542.724187 115.504326)">liquid · 0.1 g/s · 293 K</text>
+   </g>
+   <g id="patch_65">
+    <path d="M 542.724187 127.259768 
+L 715.813312 127.259768 
+L 715.813312 121.774761 
+L 542.724187 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_66">
+    <path d="M 715.813312 127.259768 
+L 715.813312 127.259768 
+L 715.813312 121.774761 
+L 715.813312 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_105">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="542.724187" y="140.491578" transform="rotate(-0 542.724187 140.491578)">liq  A 0.1</text>
+   </g>
+   <g id="text_106">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="542.724187" y="153.899703" transform="rotate(-0 542.724187 153.899703)">sol  -</text>
+   </g>
+   <g id="text_107">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="740.801531" y="223.642399" transform="rotate(-0 740.801531 223.642399)">CR02H out</text>
+   </g>
+   <g id="text_108">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="740.801531" y="237.393358" transform="rotate(-0 740.801531 237.393358)">slurry · 1.33 g/s · 281 K</text>
+   </g>
+   <g id="patch_67">
+    <path d="M 740.801531 249.1488 
+L 865.934866 249.1488 
+L 865.934866 243.663794 
+L 740.801531 243.663794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_68">
+    <path d="M 867.763272 249.1488 
+L 913.890656 249.1488 
+L 913.890656 243.663794 
+L 867.763272 243.663794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_109">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="740.801531" y="262.38061" transform="rotate(-0 740.801531 262.38061)">liq  B 0.82  A 0.14</text>
+   </g>
+   <g id="text_110">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="740.801531" y="275.788735" transform="rotate(-0 740.801531 275.788735)">sol  F 0.36</text>
+   </g>
+   <g id="text_111">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="938.878875" y="409.569374" transform="rotate(-0 938.878875 409.569374)">Filtrate 1</text>
+   </g>
+   <g id="text_112">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="938.878875" y="423.274132" transform="rotate(-0 938.878875 423.274132)">slurry · 0.91 g/s · 281 K</text>
+   </g>
+   <g id="patch_69">
+    <path d="M 938.878875 435.029574 
+L 1109.467475 435.029574 
+L 1109.467475 429.544568 
+L 938.878875 429.544568 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_70">
+    <path d="M 1111.295881 435.029574 
+L 1111.968 435.029574 
+L 1111.968 429.544568 
+L 1111.295881 429.544568 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_113">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="938.878875" y="448.261384" transform="rotate(-0 938.878875 448.261384)">liq  B 0.77  A 0.14</text>
+   </g>
+   <g id="text_114">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="938.878875" y="461.66951" transform="rotate(-0 938.878875 461.66951)">sol  F 0.0036</text>
+   </g>
+   <g id="text_115">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1136.956219" y="223.6886" transform="rotate(-0 1136.956219 223.6886)">F01H cake</text>
+   </g>
+   <g id="text_116">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1136.956219" y="237.393358" transform="rotate(-0 1136.956219 237.393358)">wet cake · 0.416 g/s · 281 K</text>
+   </g>
+   <g id="patch_71">
+    <path d="M 1136.956219 249.1488 
+L 1162.645327 249.1488 
+L 1162.645327 243.663794 
+L 1136.956219 243.663794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_72">
+    <path d="M 1164.473733 249.1488 
+L 1310.045344 249.1488 
+L 1310.045344 243.663794 
+L 1164.473733 243.663794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_117">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1136.956219" y="262.38061" transform="rotate(-0 1136.956219 262.38061)">liq  B 0.053  A 0.0093</text>
+   </g>
+   <g id="text_118">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1136.956219" y="275.788735" transform="rotate(-0 1136.956219 275.788735)">sol  F 0.35</text>
+   </g>
+   <g id="text_119">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="101.799568" transform="rotate(-0 1335.033562 101.799568)">W02H wash H</text>
+   </g>
+   <g id="text_120">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1335.033562" y="115.504326" transform="rotate(-0 1335.033562 115.504326)">liquid · 0.5 g/s · 298 K</text>
+   </g>
+   <g id="patch_73">
+    <path d="M 1335.033562 127.259768 
+L 1508.122687 127.259768 
+L 1508.122687 121.774761 
+L 1335.033562 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_74">
+    <path d="M 1508.122687 127.259768 
+L 1508.122687 127.259768 
+L 1508.122687 121.774761 
+L 1508.122687 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_121">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="140.491578" transform="rotate(-0 1335.033562 140.491578)">liq  H 0.5</text>
+   </g>
+   <g id="text_122">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="153.899703" transform="rotate(-0 1335.033562 153.899703)">sol  -</text>
+   </g>
+   <g id="text_123">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="409.569374" transform="rotate(-0 1335.033562 409.569374)">W02H filtrate</text>
+   </g>
+   <g id="text_124">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1335.033562" y="423.274132" transform="rotate(-0 1335.033562 423.274132)">slurry · 0.505 g/s · 281 K</text>
+   </g>
+   <g id="patch_75">
+    <path d="M 1335.033562 435.029574 
+L 1505.095415 435.029574 
+L 1505.095415 429.544568 
+L 1335.033562 429.544568 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_76">
+    <path d="M 1506.923821 435.029574 
+L 1508.122687 435.029574 
+L 1508.122687 429.544568 
+L 1506.923821 429.544568 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_125">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="448.261384" transform="rotate(-0 1335.033562 448.261384)">liq  H 0.45  B 0.047  A 0.0083</text>
+   </g>
+   <g id="text_126">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="461.66951" transform="rotate(-0 1335.033562 461.66951)">sol  F 0.0035</text>
+   </g>
+   <g id="text_127">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1533.110906" y="223.6886" transform="rotate(-0 1533.110906 223.6886)">W02H cake</text>
+   </g>
+   <g id="text_128">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1533.110906" y="237.393358" transform="rotate(-0 1533.110906 237.393358)">wet cake · 0.411 g/s · 281 K</text>
+   </g>
+   <g id="patch_77">
+    <path d="M 1533.110906 249.1488 
+L 1558.800014 249.1488 
+L 1558.800014 243.663794 
+L 1533.110906 243.663794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_78">
+    <path d="M 1560.62842 249.1488 
+L 1706.200031 249.1488 
+L 1706.200031 243.663794 
+L 1560.62842 243.663794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_129">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1533.110906" y="262.38061" transform="rotate(-0 1533.110906 262.38061)">liq  H 0.055  B 0.0058  A 0.001</text>
+   </g>
+   <g id="text_130">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1533.110906" y="275.788735" transform="rotate(-0 1533.110906 275.788735)">sol  F 0.35</text>
+   </g>
+   <g id="text_131">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="101.799568" transform="rotate(-0 1731.18825 101.799568)">Feed H</text>
+   </g>
+   <g id="text_132">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1731.18825" y="115.504326" transform="rotate(-0 1731.18825 115.504326)">liquid · 0.5 g/s · 298 K</text>
+   </g>
+   <g id="patch_79">
+    <path d="M 1731.18825 127.259768 
+L 1904.277375 127.259768 
+L 1904.277375 121.774761 
+L 1731.18825 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_80">
+    <path d="M 1904.277375 127.259768 
+L 1904.277375 127.259768 
+L 1904.277375 121.774761 
+L 1904.277375 121.774761 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_133">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="140.491578" transform="rotate(-0 1731.18825 140.491578)">liq  H 0.5</text>
+   </g>
+   <g id="text_134">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="153.899703" transform="rotate(-0 1731.18825 153.899703)">sol  -</text>
+   </g>
+   <g id="text_135">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="409.523173" transform="rotate(-0 1731.18825 409.523173)">D01H out</text>
+   </g>
+   <g id="text_136">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1731.18825" y="423.274132" transform="rotate(-0 1731.18825 423.274132)">slurry · 0.911 g/s · 281 K</text>
+   </g>
+   <g id="patch_81">
+    <path d="M 1731.18825 435.029574 
+L 1836.819394 435.029574 
+L 1836.819394 429.544568 
+L 1731.18825 429.544568 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_82">
+    <path d="M 1838.6478 435.029574 
+L 1904.277375 435.029574 
+L 1904.277375 429.544568 
+L 1838.6478 429.544568 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_137">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="448.261384" transform="rotate(-0 1731.18825 448.261384)">liq  H 0.55  B 0.0058</text>
+   </g>
+   <g id="text_138">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="461.66951" transform="rotate(-0 1731.18825 461.66951)">sol  F 0.35</text>
+   </g>
+   <g id="text_139">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="39.912469" y="513.17468" transform="rotate(-0 39.912469 513.17468)">R02R makeup</text>
+   </g>
+   <g id="text_140">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="39.912469" y="526.87981" transform="rotate(-0 39.912469 526.87981)">liquid · 18.1 g/s · 303 K</text>
+   </g>
+   <g id="patch_83">
+    <path d="M 39.912469 538.635252 
+L 213.001594 538.635252 
+L 213.001594 533.150245 
+L 39.912469 533.150245 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_84">
+    <path d="M 213.001594 538.635252 
+L 213.001594 538.635252 
+L 213.001594 533.150245 
+L 213.001594 533.150245 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_141">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="39.912469" y="551.867061" transform="rotate(-0 39.912469 551.867061)">liq  G 8  H 5.3  A 3.6  I 1.3</text>
+   </g>
+   <g id="text_142">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="39.912469" y="565.275187" transform="rotate(-0 39.912469 565.275187)">sol  -</text>
+   </g>
+   <g id="text_143">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="344.646844" y="601.498399" transform="rotate(-0 344.646844 601.498399)">R02R out</text>
+   </g>
+   <g id="text_144">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="344.646844" y="615.249358" transform="rotate(-0 344.646844 615.249358)">liquid · 18.8 g/s · 333 K</text>
+   </g>
+   <g id="patch_85">
+    <path d="M 344.646844 627.0048 
+L 517.735969 627.0048 
+L 517.735969 621.519794 
+L 344.646844 621.519794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_86">
+    <path d="M 517.735969 627.0048 
+L 517.735969 627.0048 
+L 517.735969 621.519794 
+L 517.735969 621.519794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_145">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="344.646844" y="640.23661" transform="rotate(-0 344.646844 640.23661)">liq  G 7.8  H 5.9  A 3.5  I 1.2  E 0.22</text>
+   </g>
+   <g id="text_146">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="344.646844" y="653.644735" transform="rotate(-0 344.646844 653.644735)">sol  -</text>
+   </g>
+   <g id="text_147">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="542.724187" y="799.614277" transform="rotate(-0 542.724187 799.614277)">Feed B</text>
+   </g>
+   <g id="text_148">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="542.724187" y="813.319036" transform="rotate(-0 542.724187 813.319036)">liquid · 20 g/s · 298 K</text>
+   </g>
+   <g id="patch_87">
+    <path d="M 542.724187 825.074477 
+L 715.813312 825.074477 
+L 715.813312 819.589471 
+L 542.724187 819.589471 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_88">
+    <path d="M 715.813312 825.074477 
+L 715.813312 825.074477 
+L 715.813312 819.589471 
+L 715.813312 819.589471 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_149">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="542.724187" y="838.306287" transform="rotate(-0 542.724187 838.306287)">liq  B 20</text>
+   </g>
+   <g id="text_150">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="542.724187" y="851.714413" transform="rotate(-0 542.724187 851.714413)">sol  -</text>
+   </g>
+   <g id="text_151">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="740.801531" y="601.498399" transform="rotate(-0 740.801531 601.498399)">D01R out</text>
+   </g>
+   <g id="text_152">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="740.801531" y="615.249358" transform="rotate(-0 740.801531 615.249358)">slurry · 38.8 g/s · 293 K</text>
+   </g>
+   <g id="patch_89">
+    <path d="M 740.801531 627.0048 
+L 910.563343 627.0048 
+L 910.563343 621.519794 
+L 740.801531 621.519794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_90">
+    <path d="M 912.391749 627.0048 
+L 913.890656 627.0048 
+L 913.890656 621.519794 
+L 912.391749 621.519794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_153">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="740.801531" y="640.23661" transform="rotate(-0 740.801531 640.23661)">liq  B 20  G 7.8  H 5.9  A 3.5  I 1.2</text>
+   </g>
+   <g id="text_154">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="740.801531" y="653.644735" transform="rotate(-0 740.801531 653.644735)">sol  E 0.22  D 0.12</text>
+   </g>
+   <g id="text_155">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="938.878875" y="799.614277" transform="rotate(-0 938.878875 799.614277)">Filtrate 2</text>
+   </g>
+   <g id="text_156">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="938.878875" y="813.319036" transform="rotate(-0 938.878875 813.319036)">slurry · 38.3 g/s · 293 K</text>
+   </g>
+   <g id="patch_91">
+    <path d="M 938.878875 825.074477 
+L 1110.124417 825.074477 
+L 1110.124417 819.589471 
+L 938.878875 819.589471 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_92">
+    <path d="M 1111.952823 825.074477 
+L 1111.968 825.074477 
+L 1111.968 819.589471 
+L 1111.952823 819.589471 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_157">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="938.878875" y="838.306287" transform="rotate(-0 938.878875 838.306287)">liq  B 20  G 7.8  H 5.9  A 3.5  I 1.2</text>
+   </g>
+   <g id="text_158">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="938.878875" y="851.714413" transform="rotate(-0 938.878875 851.714413)">sol  E 0.0022  D 0.0012</text>
+   </g>
+   <g id="text_159">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1136.956219" y="601.5446" transform="rotate(-0 1136.956219 601.5446)">F01R cake</text>
+   </g>
+   <g id="text_160">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1136.956219" y="615.249358" transform="rotate(-0 1136.956219 615.249358)">wet cake · 0.48 g/s · 293 K</text>
+   </g>
+   <g id="patch_93">
+    <path d="M 1136.956219 627.0048 
+L 1188.334434 627.0048 
+L 1188.334434 621.519794 
+L 1136.956219 621.519794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_94">
+    <path d="M 1190.16284 627.0048 
+L 1310.045344 627.0048 
+L 1310.045344 621.519794 
+L 1190.16284 621.519794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_161">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1136.956219" y="640.23661" transform="rotate(-0 1136.956219 640.23661)">liq  B 0.075  G 0.029  H 0.022  A 0.013  I 0.0045</text>
+   </g>
+   <g id="text_162">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1136.956219" y="653.644735" transform="rotate(-0 1136.956219 653.644735)">sol  E 0.22  D 0.12</text>
+   </g>
+   <g id="text_163">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="513.175052" transform="rotate(-0 1335.033562 513.175052)">W02R wash B</text>
+   </g>
+   <g id="text_164">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1335.033562" y="526.87981" transform="rotate(-0 1335.033562 526.87981)">liquid · 0.5 g/s · 298 K</text>
+   </g>
+   <g id="patch_95">
+    <path d="M 1335.033562 538.635252 
+L 1508.122687 538.635252 
+L 1508.122687 533.150245 
+L 1335.033562 533.150245 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_96">
+    <path d="M 1508.122687 538.635252 
+L 1508.122687 538.635252 
+L 1508.122687 533.150245 
+L 1508.122687 533.150245 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_165">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="551.867061" transform="rotate(-0 1335.033562 551.867061)">liq  B 0.5</text>
+   </g>
+   <g id="text_166">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="565.275187" transform="rotate(-0 1335.033562 565.275187)">sol  -</text>
+   </g>
+   <g id="text_167">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="799.614277" transform="rotate(-0 1335.033562 799.614277)">W02R filtrate</text>
+   </g>
+   <g id="text_168">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1335.033562" y="813.319036" transform="rotate(-0 1335.033562 813.319036)">slurry · 0.505 g/s · 293 K</text>
+   </g>
+   <g id="patch_97">
+    <path d="M 1335.033562 825.074477 
+L 1505.153716 825.074477 
+L 1505.153716 819.589471 
+L 1335.033562 819.589471 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_98">
+    <path d="M 1506.982122 825.074477 
+L 1508.122687 825.074477 
+L 1508.122687 819.589471 
+L 1506.982122 819.589471 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_169">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="838.306287" transform="rotate(-0 1335.033562 838.306287)">liq  B 0.45  G 0.023  H 0.017  A 0.01  I 0.0035</text>
+   </g>
+   <g id="text_170">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1335.033562" y="851.714413" transform="rotate(-0 1335.033562 851.714413)">sol  E 0.0022  D 0.0012</text>
+   </g>
+   <g id="text_171">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1533.110906" y="601.5446" transform="rotate(-0 1533.110906 601.5446)">W02R cake</text>
+   </g>
+   <g id="text_172">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1533.110906" y="615.249358" transform="rotate(-0 1533.110906 615.249358)">wet cake · 0.475 g/s · 293 K</text>
+   </g>
+   <g id="patch_99">
+    <path d="M 1533.110906 627.0048 
+L 1584.489106 627.0048 
+L 1584.489106 621.519794 
+L 1533.110906 621.519794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_100">
+    <path d="M 1586.317513 627.0048 
+L 1706.200031 627.0048 
+L 1706.200031 621.519794 
+L 1586.317513 621.519794 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_173">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1533.110906" y="640.23661" transform="rotate(-0 1533.110906 640.23661)">liq  B 0.13  G 0.0065  H 0.0049  A 0.0029  I 0.001</text>
+   </g>
+   <g id="text_174">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1533.110906" y="653.644735" transform="rotate(-0 1533.110906 653.644735)">sol  E 0.22  D 0.12</text>
+   </g>
+   <g id="text_175">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="513.175052" transform="rotate(-0 1731.18825 513.175052)">Feed L</text>
+   </g>
+   <g id="text_176">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1731.18825" y="526.87981" transform="rotate(-0 1731.18825 526.87981)">liquid · 2 g/s · 298 K</text>
+   </g>
+   <g id="patch_101">
+    <path d="M 1731.18825 538.635252 
+L 1904.277375 538.635252 
+L 1904.277375 533.150245 
+L 1731.18825 533.150245 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_102">
+    <path d="M 1904.277375 538.635252 
+L 1904.277375 538.635252 
+L 1904.277375 533.150245 
+L 1904.277375 533.150245 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_177">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="551.867061" transform="rotate(-0 1731.18825 551.867061)">liq  L 2</text>
+   </g>
+   <g id="text_178">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="565.275187" transform="rotate(-0 1731.18825 565.275187)">sol  -</text>
+   </g>
+   <g id="text_179">
+    <text style="font-weight: 700; font-size: 9.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="799.613906" transform="rotate(-0 1731.18825 799.613906)">D03R product</text>
+   </g>
+   <g id="text_180">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="1731.18825" y="813.319036" transform="rotate(-0 1731.18825 813.319036)">slurry · 2.48 g/s · 293 K</text>
+   </g>
+   <g id="patch_103">
+    <path d="M 1731.18825 825.074477 
+L 1902.306911 825.074477 
+L 1902.306911 819.589471 
+L 1731.18825 819.589471 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_104">
+    <path d="M 1904.135317 825.074477 
+L 1904.277375 825.074477 
+L 1904.277375 819.589471 
+L 1904.135317 819.589471 
+z
+" clip-path="url(#p3669d420c1)" style="fill: #eb6834"/>
+   </g>
+   <g id="text_181">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="838.306287" transform="rotate(-0 1731.18825 838.306287)">liq  L 2  E 0.22  B 0.13  D 0.12</text>
+   </g>
+   <g id="text_182">
+    <text style="font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="1731.18825" y="851.714413" transform="rotate(-0 1731.18825 851.714413)">sol  E 0.0015  D 0.00054</text>
+   </g>
+   <g id="legend_1">
+    <g id="line2d_40">
+     <path d="M 35.344687 886.737755 
+L 45.844687 886.737755 
+L 56.344687 886.737755 
+" style="fill: none; stroke: #2a78d6; stroke-width: 2.6; stroke-linecap: square"/>
+    </g>
+    <g id="text_183">
+     <text style="font-size: 10.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start" x="64.744687" y="890.412755" transform="rotate(-0 64.744687 890.412755)">Liquid stream</text>
+    </g>
+    <g id="line2d_41">
+     <path d="M 150.109687 886.737755 
+L 155.359687 886.737755 
+L 160.609687 886.737755 
+" style="fill: none; stroke: #2a78d6; stroke-width: 2.2; stroke-linecap: square"/>
+    </g>
+    <g id="line2d_42">
+     <path d="M 160.609687 886.737755 
+L 165.859687 886.737755 
+L 171.109687 886.737755 
+" style="fill: none; stroke: #eb6834; stroke-width: 2.2; stroke-linecap: square"/>
+    </g>
+    <g id="text_184">
+     <text style="font-size: 10.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start" x="179.509687" y="890.412755" transform="rotate(-0 179.509687 890.412755)">Slurry or wet cake (blue + orange lines)</text>
+    </g>
+    <g id="line2d_43">
+     <path d="M 386.445 886.737755 
+L 396.945 886.737755 
+L 407.445 886.737755 
+" style="fill: none; stroke-dasharray: 5.2,2.6; stroke-dashoffset: 0; stroke: #52514e; stroke-width: 1.3"/>
+    </g>
+    <g id="text_185">
+     <text style="font-size: 10.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start" x="415.845" y="890.412755" transform="rotate(-0 415.845 890.412755)">Dashed box: algebraic step in a link, no states</text>
+    </g>
+    <g id="line2d_44">
+     <path d="M 654.196641 886.737755 
+L 664.696641 886.737755 
+L 675.196641 886.737755 
+" style="fill: none; stroke: #52514e; stroke-width: 1.3; stroke-linecap: square"/>
+    </g>
+    <g id="text_186">
+     <text style="font-size: 10.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start" x="683.596641" y="890.412755" transform="rotate(-0 683.596641 890.412755)">Solid box: vessel with its own states</text>
+    </g>
+   </g>
+   <g id="text_187">
+    <g id="patch_105">
+     <path d="M 266.79282 236.201682 
+L 318.89118 236.201682 
+Q 321.44118 236.201682 321.44118 233.651682 
+L 321.44118 225.641428 
+Q 321.44118 223.091428 318.89118 223.091428 
+L 266.79282 223.091428 
+Q 264.24282 223.091428 264.24282 225.641428 
+L 264.24282 233.651682 
+Q 264.24282 236.201682 266.79282 236.201682 
+z
+" style="fill: #fdeceb; stroke: #c62f2f; stroke-width: 1.2; stroke-linejoin: miter"/>
+    </g>
+    <text style="font-weight: 700; font-size: 8.5px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: middle; fill: #c62f2f" x="292.842" y="231.908518" transform="rotate(-0 292.842 231.908518)">WARNING W1</text>
+   </g>
+   <g id="text_188">
+    <g id="patch_106">
+     <path d="M 475.2935 500.221381 
+L 685.729 500.221381 
+Q 688.369 500.221381 688.369 497.581381 
+L 688.369 480.959006 
+Q 688.369 478.319006 685.729 478.319006 
+L 475.2935 478.319006 
+Q 472.6535 478.319006 472.6535 480.959006 
+L 472.6535 497.581381 
+Q 472.6535 500.221381 475.2935 500.221381 
+z
+" style="fill: #fff4d6; stroke: #c98a00; stroke-width: 0.8; stroke-linejoin: miter"/>
+    </g>
+    <text style="font-size: 8.8px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(475.2935 487.447631)">ASSUMPTION A1: solid F dissolves quickly, then reacts</text>
+    <text style="font-size: 8.8px; font-family: 'Trebuchet MS', 'DejaVu Sans'; fill: #0b0b0b" transform="translate(481.234187 495.741631)">(DissolvedSlurryInlet: slurry in, liquid out to R02R)</text>
+   </g>
+  </g>
+  <g id="text_189">
+   <text style="font-weight: 700; font-size: 17px; font-family: 'Trebuchet MS', 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="23.76" y="24.507531" transform="rotate(-0 23.76 24.507531)">Flowsheet phases and unit classes: D03R product is D 100%  E 99% dissolved</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p3669d420c1">
+   <rect x="19.8" y="41.328" width="1950.3" height="1133.568"/>
+  </clipPath>
+ </defs>
+</svg>

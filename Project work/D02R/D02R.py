@@ -15,21 +15,31 @@ as one block in the flowsheet.
 
 ``D02R`` is a ``PharmaPy.Crystallizers_Refactored.ContinuousCrystallizer``
 charged with B and fed two streams: F01R's cake (``f01r_cake`` solves
-R02R -> D01R -> F01R) and pure B. F01R carries D, E and J crystals as one
+R02R -> D01R -> F01R) and pure B. F01R carries D and E crystals as one
 mixed population; here each species gets its own solid phase, population
 balance and kinetics, as in D01R. ``split_cake`` splits the mixed population
 by crystal volume: every species keeps the cake's size distribution shape,
 and its own crystal mass flow exactly. The cake enters as one stream
-(liquid, then the D, E and J solids, in that order); PharmaPy maps a feed's
+(liquid, then the D and E solids, in that order); PharmaPy maps a feed's
 k-th solid onto the vessel's k-th solid.
 
-Solubility and kinetics are D01R's, since B is D01R's antisolvent::
+Solubility is D01R's, since B is D01R's antisolvent::
 
     c_sat,i = S0_i * exp(-K_B * [B])
 
-In the nearly pure B of the wash tank (~50 mol/L), exp(-K_B [B]) is ~5e-5,
-so the crystals barely dissolve: only the solute the cake liquid carries in
-stays dissolved, plus whatever re-saturates the wash liquor.
+The wash has no phase change: nucleation, growth and dissolution are all
+zero, and the crystals pass through unchanged. In the nearly pure B of the
+tank c_sat is ~1e-7 mol/L, so the most the wash could dissolve is
+c_sat * liquid flow ~5e-11 mol/s, and the liquor stays well below
+saturation (sigma ~-0.66), so nothing precipitates either. With D01R's
+kinetics that tiny solute inventory is driven to saturation in
+milliseconds, and sigma chatters across zero, where PharmaPy switches
+dissolution to growth; that stalled the coupled flowsheet at 0.49 h (and a
+short R02R -> D01R -> W02R -> D03R chain at 150-170 s), however the rate
+law was smoothed.
+
+In the nearly pure B of the wash tank (~55 mol/L), exp(-K_B [B]) is
+~1.6e-5: only the solute the cake liquid carries in stays dissolved.
 
 Crystallization rates (PharmaPy's CrystKinetics), relative supersaturation
 sigma_i = (c_i - c_sat,i) / c_sat,i::
@@ -54,7 +64,7 @@ Run it with::
 Figures are written to ``results/`` next to this file:
 
     D02R_profiles.png      crystals held, saturation, fraction dissolved
-    D02R_csd.png           D, E, J size distributions, fed vs leaving
+    D02R_csd.png           D and E size distributions, fed vs leaving
     D02R_settings.png      the settings and initial conditions used
     D02R_mass_balance.png  inlet vs outlet species balance at the final time
 """
@@ -98,7 +108,7 @@ from continuous_filter import SlurryFlow  # noqa: E402
 DB_PATH = F01R.DEFAULT_DATABASE_PATH
 
 # ---------------------------------------------------------------- settings
-CRYSTAL_SPECIES = F01R.CRYSTAL_SPECIES  # ("D", "E", "J")
+CRYSTAL_SPECIES = F01R.CRYSTAL_SPECIES  # ("D", "E")
 SOLVENT_NAME = "B"  # the wash solvent and tank charge (the cake liquid's is B/H)
 
 # Fresh wash feed, pure B. D01H's defaults: 0.5 g/s at 25 C.
@@ -119,10 +129,14 @@ ANTISOLVENT_K_B = D01R.ANTISOLVENT_K_B  # L/mol
 
 # Kinetics per species, (k, E_a [J/mol], order): D01R's. Units: nucleation
 # #/(s m**3 slurry), growth and dissolution um/s.
-NUCL_PRIM = D01R.NUCL_PRIM
-NUCL_SEC = D01R.NUCL_SEC
-GROWTH = D01R.GROWTH
-DISSOLUTION = D01R.DISSOLUTION
+# Kinetics per species, (k, E_a [J/mol], order): all zero, no phase change
+# (see the module docstring). D01R's would be D01R.NUCL_PRIM, .GROWTH and
+# .DISSOLUTION. Units: nucleation #/(s m**3 slurry), growth and
+# dissolution um/s.
+NUCL_PRIM = {name: (0.0, 0.0, 2.0) for name in CRYSTAL_SPECIES}
+NUCL_SEC = {name: (0.0, 0.0, 0.0, 0.0) for name in CRYSTAL_SPECIES}
+GROWTH = {name: (0.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
+DISSOLUTION = {name: (0.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
 
 # The cake's size grid (F01R's, which is D01R's); the tank's solids must
 # match it.
@@ -170,7 +184,7 @@ def crystal_mass_flow(number_flow, density: float) -> float:
 
 
 def cake_stream(cake_flow: SlurryFlow) -> MixedStream:
-    """The cake as one stream: its liquid, then a D, an E and a J solid.
+    """The cake as one stream: its liquid, then a D and an E solid.
 
     Follows the convention ``continuous_filter.stream_from_flow`` uses for
     one solid: each solid's crystal density is per m**3 of the whole
@@ -413,7 +427,7 @@ def final_balance(tank) -> SimpleNamespace:
     read from the contribution buffer rather than re-derived.
 
     ``feeds`` (feed phase, species) inlet flows and ``feed_phases`` their
-    phase types, in the order cake liquid, cake D, E, J solids, B; liquid
+    phase types, in the order cake liquid, cake D and E solids, B; liquid
     ``inlet``, ``to_liquid`` (dissolved), ``outlet``, ``accumulation``
     (species); and per species ``crystal`` {name: {inlet, dissolved,
     outlet, accumulation}}, each weighted by that solid's own slurry

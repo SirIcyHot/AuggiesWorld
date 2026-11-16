@@ -42,8 +42,9 @@ right-hand side (see the ``CoupledInlet`` subclasses below):
 Where this differs from running the scripts one at a time
 ---------------------------------------------------------
 - CR02H receives CR01H's crystals (``CR02H.FEED_SOLIDS`` is False standalone).
-- D02H and D01H run on CR01H's size grid, D02R and D03R on D01R's. The real
-  crystals are mm sized, which the 1-401 um grid of D01H cannot hold.
+- CR01H, CR02H, D02H and D01H share one coarser H-side size grid
+  (``H_CRYSTAL_SIZE_GRID``, 100 um cells), and D02R and D03R run on D01R's.
+  The real crystals are mm sized, which the 1-401 um grid of D01H cannot hold.
 - R02R's F comes only from D01H. ``R02R_MAKEUP`` is R02R's own feed with the F
   taken out, at the same mass flows of everything else.
 - D02H's and D01H's S0 (the same, the vessels being identical) is fixed at the
@@ -53,9 +54,16 @@ Where this differs from running the scripts one at a time
 
 Solver
 ------
-CVode (Assimulo) with GMRES, as the crystallizers ask for, plus a preconditioner
-of one Jacobian block per vessel (``BlockPreconditionedCVode``). ~2800 states
-rule out a dense Jacobian, and GMRES alone stalls on the dissolution kinetics.
+CVode (Assimulo) with plain, unpreconditioned GMRES (krylov), as the
+crystallizers ask for; ~1100 states rule out a dense Jacobian. The Krylov
+subspace is raised to 25 (``SOLVER_OPTIONS``), which with the coarse H grid
+made the run 1.7x faster than 5 and 501 H bins (~60 min solo). This relies
+on the dissolution kinetics staying mild
+(D03R at k_d = 10 um/s on D01R's 20 um grid): at k_d = 5e5 um/s plain GMRES
+stalled. The per-vessel block preconditioner that handled that case is kept
+in ``Flowsheet_preconditioned_archive.py``; at the current settings it was
+slower than plain GMRES (its finite-difference rebuilds outweigh the calls
+saved).
 Run from an activated environment, or LAPACK fails to load::
 
     conda activate PharmaPy
@@ -79,7 +87,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
-from scipy.linalg import lu_factor, lu_solve
 
 from PharmaPy.ConcurrentVessel import ConcurrentVessel, CoupledInlet, StreamLink
 from PharmaPy.DataClasses import PhaseRef, StateKey
@@ -118,13 +125,26 @@ DB_PATH = F01H.DB_PATH
 # 12 of them), and D01R only starts settling once R02R has.
 RUNTIME = 16 * 3600.0  # s
 REPORT_POINTS = 481  # saved time points; the results replay visits each one
-SOLVER_OPTIONS = {"maxh": 120.0, "rtol": 1e-6, "atol": 1e-8,
-                  "precond": "PREC_RIGHT"}
+# maxkrylov 25 (CVode's default is 5): with 5 GMRES iterations per linear
+# solve the stiff crystal modes failed Newton ~1200 times and held steps to
+# 1.5-6.5 s; 25 cuts the steps ~45 % and leaves every stream unchanged.
+SOLVER_OPTIONS = {"maxh": 120.0, "rtol": 1e-6, "atol": 1e-8, "maxkrylov": 25}
+
+# H-side size grid: 100 um cells over CR01H's 1-10001 um range (101 bins, was
+# 20 um and 501; standalone CR01H keeps 20 um). Only crystal masses go
+# downstream; every stream moved by under 0.7 % against 20 um, and the grid
+# cut the plant from 2709 to 1109 states. CR02H took CR01H's grid by value
+# at import, so it is set here too.
+H_CRYSTAL_SIZE_GRID = np.arange(1.0, 10002.0, 100.0)  # um
 
 # The crystal populations travel between these vessels unchanged, so each pair
 # shares one grid; see the module docstring.
-D01H.CRYSTAL_SIZE_GRID = CR01H.CRYSTAL_SIZE_GRID  # D02H builds through D01H
-D02H.CRYSTAL_SIZE_GRID = CR01H.CRYSTAL_SIZE_GRID
+for _module in (CR01H, CR02H, F01H, D01H, D02H):  # D02H builds through D01H
+    _module.CRYSTAL_SIZE_GRID = H_CRYSTAL_SIZE_GRID
+# R side stays on D01R's 20 um grid. Tested coarser: 50 um ran 1.7x faster
+# but undercounted D01R's crystals by 1.4 % (cake liquids -2.5 %) and opened
+# D03R's mass gap to -0.25 %; 100 um, -4.2 % and -0.90 %. D01R's crystals are
+# a few hundred um, unlike the mm-sized H crystals.
 F01R.CRYSTAL_SIZE_GRID = D01R.CRYSTAL_SIZE_GRID
 D02R.CRYSTAL_SIZE_GRID = D01R.CRYSTAL_SIZE_GRID
 D03R.CRYSTAL_SIZE_GRID = D01R.CRYSTAL_SIZE_GRID
@@ -403,103 +423,6 @@ def with_true_slurry_feed(vessel):
     return vessel
 
 
-class BlockPreconditionedCVode(AssimuloBackend):
-    """CVode with GMRES, preconditioned by one Jacobian block per vessel.
-
-    Unpreconditioned GMRES stalls at ~1150 s, when crystals reach D01R and
-    the L dissolver (now D03R): dissolution at k_d = 5e5 um/s on a 10 um grid has eigenvalues near
-    5e4 /s. A dense Jacobian of the whole plant would cost ~2800 evaluations of
-    every vessel each time. But this plant has no recycle, so its Jacobian
-    is block lower triangular: each vessel's own block carries the stiffness,
-    and the links only couple it to the vessel upstream. Each block is found by
-    finite differences on that vessel alone with the couplings frozen, and GMRES
-    still multiplies by the true Jacobian, so the links are not approximated in
-    the answer, only in the preconditioner.
-    """
-
-    PERTURBATION = np.sqrt(np.finfo(float).eps)
-
-    def set_ode_problem(self, unit, states_init):
-        super().set_ode_problem(unit, states_init)
-        self._unit = unit
-        self._blocks = None
-        self._factors = None
-        self.refreshes = 0
-        self._started = clock.time()
-        self._problem.prec_setup = self._prec_setup
-        self._problem.prec_solve = self._prec_solve
-
-    def _member_block(self, member, time, states):
-        """d(rates)/d(states) of one vessel, its inlets held fixed."""
-        states = np.array(states, dtype=float)
-        collection = member.solver_state_collection
-
-        # A state at zero is perturbed on the scale of its own group: a crystal
-        # size cell by the distribution's largest, a species by the total mass.
-        floor = np.ones(states.size)
-        for block in collection.slices.values():
-            floor[block] = max(1.0e-3 * float(np.abs(states[block]).max()),
-                               1.0e-12)
-
-        member.invalidate_inlet_cache()
-        base = np.array(member.unit_model(time=time, states=states),
-                        dtype=float)
-        block = np.zeros((states.size, states.size))
-
-        for j in range(states.size):
-            step = self.PERTURBATION * max(abs(states[j]), floor[j])
-            trial = states.copy()
-            trial[j] += step
-            member.invalidate_inlet_cache()
-            block[:, j] = (np.asarray(member.unit_model(time=time,
-                                                        states=trial))
-                           - base) / step
-
-        # One bad column must not poison the factorization: it only makes the
-        # preconditioner weaker, and GMRES still solves the true system.
-        return np.nan_to_num(block, nan=0.0, posinf=0.0, neginf=0.0)
-
-    def _prec_setup(self, t, y, fy, jok, gamma, data):
-        unit = self._unit
-        y = np.asarray(y, dtype=float)
-        refreshed = False
-
-        if not jok or self._blocks is None:
-            unit._eval_key = None
-            unit._evaluate(t, y)
-            with unit._frozen_couplings():
-                self._blocks = {
-                    name: self._member_block(
-                        unit.members[name], t, y[unit._member_slices[name]])
-                    for name in unit.order
-                }
-            # The vessels were left at the last perturbed state.
-            unit._eval_key = None
-            refreshed = True
-            self.refreshes += 1
-            if self.refreshes % 25 == 0:
-                print(f"  t = {float(t) / 3600:.2f} h, {self.refreshes} "
-                      f"preconditioner refreshes, "
-                      f"{(clock.time() - self._started) / 60:.1f} min wall",
-                      flush=True)
-
-        self._factors = {
-            name: lu_factor(np.eye(block.shape[0]) - gamma * block,
-                            check_finite=False)
-            for name, block in self._blocks.items()
-        }
-        return [refreshed, data]
-
-    def _prec_solve(self, t, y, fy, r, gamma, delta, data):
-        unit = self._unit
-        solved = np.array(r, dtype=float)
-        for name, factors in self._factors.items():
-            piece = unit._member_slices[name]
-            solved[piece] = lu_solve(factors, solved[piece],
-                                     check_finite=False)
-        return solved
-
-
 def attach(cv, link, coupling, stream):
     """Add a link, then give it ``coupling`` and the sink's own inlet stream.
 
@@ -599,7 +522,7 @@ def build_flowsheet() -> ConcurrentVessel:
     cv = ConcurrentVessel(
         {"CR01H": cr01, "CR02H": cr02, "D02H": d02h, "D01H": d01h,
          "R02R": r02r, "D01R": d01r, "D02R": d02r, "D03R": d03r},
-        integrator=BlockPreconditionedCVode(options=dict(SOLVER_OPTIONS)),
+        integrator=AssimuloBackend(options=dict(SOLVER_OPTIONS)),
     )
 
     cv.add_link(StreamLink("CR01H", "CR02H", inlet=0))

@@ -68,7 +68,7 @@ def test_cake_stream_carries_the_cake(default_run):
     total = sum(float(np.sum(s.mass_flow)) for s in cake.Streams)
 
     assert [s.phase_family for s in cake.Streams] == \
-        ["liquid", "solid", "solid", "solid"]
+        ["liquid"] + ["solid"] * len(D03R.CRYSTAL_SPECIES)
     assert total == pytest.approx(
         cake_flow.liquid_mass_flow + cake_flow.solid_mass_flow, rel=1e-9)
 

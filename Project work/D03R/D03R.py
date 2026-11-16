@@ -17,12 +17,12 @@ and fed two streams: F02R's cake (``f02r_cake`` solves R02R -> D01R -> F01R
 -> D02R -> F02R) and pure L. L is a new compound with DUMMY properties in
 ``compound_databaseActual.json``; replace them when real data exist.
 
-F02R (like F01R) carries D, E and J crystals as one mixed population. Here each
+F02R (like F01R) carries D and E crystals as one mixed population. Here each
 species gets its own solid phase, population balance and kinetics, as in
 D01R, so each dissolves against its own solubility. ``split_cake`` splits
 the mixed population by crystal volume: every species keeps the cake's
 size distribution shape, and its own crystal mass flow exactly. The cake
-enters as one stream (liquid, then the D, E and J solids, in that order);
+enters as one stream (liquid, then the D and E solids, in that order);
 PharmaPy maps a feed's k-th solid onto the vessel's k-th solid.
 
 Solubility of each species i (mol/L), with L as the dissolving solvent::
@@ -30,10 +30,10 @@ Solubility of each species i (mol/L), with L as the dissolving solvent::
     c_sat,i = S0_i * exp(K_L * [L])
 
 S0_i is the solubility in L-free liquid (R02R's H-based liquid); for now
-D, E and J share one value, D01R's S0 for J. K_L > 0, so L raises the
+D and E share one value, the S0 D01R used for J. K_L > 0, so L raises the
 solubility. It was set, for an earlier F01R cake, so that at
 D03R's steady [L] (~11 mol/L) the solubility sits just below what full
-dissolution of the cake crystals would give: D, E and J dissolve almost
+dissolution of the cake crystals would give: D and E dissolve almost
 completely. Raise K_L or L_FLOW to dissolve the rest.
 
 Crystallization rates (PharmaPy's CrystKinetics), relative supersaturation
@@ -60,7 +60,7 @@ Run it with::
 Figures are written to ``results/`` next to this file:
 
     D03R_profiles.png      crystals held, saturation, fraction dissolved
-    D03R_csd.png           D, E, J size distributions, fed vs leaving
+    D03R_csd.png           D and E size distributions, fed vs leaving
     D03R_settings.png      the settings and initial conditions used
     D03R_mass_balance.png  inlet vs outlet species balance at the final time
 """
@@ -104,21 +104,23 @@ from continuous_filter import SlurryFlow  # noqa: E402
 DB_PATH = F01R.DEFAULT_DATABASE_PATH
 
 # ---------------------------------------------------------------- settings
-CRYSTAL_SPECIES = F01R.CRYSTAL_SPECIES  # ("D", "E", "J")
+CRYSTAL_SPECIES = F01R.CRYSTAL_SPECIES  # ("D", "E")
 SOLVENT_NAME = "L"  # the tank charge (the cake liquid's solvent is H)
 
 # Fresh solvent feed, pure L.
 L_FLOW = 2.0e-3  # kg/s
 L_TEMPERATURE = 25 + 273.15  # K
 
-# Tank charge: pure L. Its mass sets the residence time.
-INITIAL_MASS = 2.5  # kg
+# Tank charge: pure L. Its mass sets the residence time: 7.5 kg gives
+# ~50 min at the flowsheet's ~2.5 g/s feed (was 2.5 kg, ~17 min), room for
+# the slower dissolution below.
+INITIAL_MASS = 7.5  # kg
 INITIAL_COMPOSITION = {}  # solute mass fractions; solvent is the remainder
 # None: held at the cake temperature (isothermal tank).
 DISSOLVER_TEMPERATURE = None  # K
 DISSOLVER_DIAMETER = 0.15  # m
 
-# Solubility c_sat = S0 exp(K_L [L]) [mol/L]. For now D, E and J share one
+# Solubility c_sat = S0 exp(K_L [L]) [mol/L]. For now D and E share one
 # S0, D01R's J value (R02R's liquid, no L); D01R's own per-species values
 # were D 0.0284, E 0.01505, J 0.0886. L/mol: each 1 mol/L of L multiplies
 # every solubility by exp(K_L) = 1.18. Both were tuned for an earlier F01R
@@ -133,11 +135,12 @@ NUCL_PRIM = {name: (1.0e10, 0.0, 2.0) for name in CRYSTAL_SPECIES}
 NUCL_SEC = {name: (0.0, 0.0, 0.0, 0.0) for name in CRYSTAL_SPECIES}
 GROWTH = {name: (10.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
 # k_d is the shrink rate [um/s] at sigma = -1 (crystals in solute-free
-# liquid). 50 um/s, as in D01R: a 1 mm crystal dissolves in ~20 s at
-# sigma = -1, well inside the residence time, while the dissolution
-# eigenvalues stay near k_d / dx ~5 /s on the 10 um grid (1e3 um/s gave
-# ~100 /s).
-DISSOLUTION = {name: (50.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
+# liquid). 10 um/s: a 1 mm crystal dissolves in ~100 s at sigma = -1, well
+# inside the ~50 min residence time. It was 50 um/s (D01R's); in the coupled
+# flowsheet the leading edge of the crystal distribution then crossed a cell
+# every ~0.2-0.4 s, and that held the solver to sub-second steps for hours.
+# The dissolution eigenvalues are now near k_d / dx ~0.5 /s on the 20 um grid.
+DISSOLUTION = {name: (10.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
 
 # The cake's size grid (F01R's, which is D01R's); the tank's solids must
 # match it.
@@ -185,7 +188,7 @@ def crystal_mass_flow(number_flow, density: float) -> float:
 
 
 def cake_stream(cake_flow: SlurryFlow) -> MixedStream:
-    """The cake as one stream: its liquid, then a D, an E and a J solid.
+    """The cake as one stream: its liquid, then a D and an E solid.
 
     Follows the convention ``continuous_filter.stream_from_flow`` uses for
     one solid: each solid's crystal density is per m**3 of the whole
@@ -428,7 +431,7 @@ def final_balance(tank) -> SimpleNamespace:
     read from the contribution buffer rather than re-derived.
 
     ``feeds`` (feed phase, species) inlet flows and ``feed_phases`` their
-    phase types, in the order cake liquid, cake D, E, J solids, L; liquid
+    phase types, in the order cake liquid, cake D and E solids, L; liquid
     ``inlet``, ``to_liquid`` (dissolved), ``outlet``, ``accumulation``
     (species); and per species ``crystal`` {name: {inlet, dissolved,
     outlet, accumulation}}, each weighted by that solid's own slurry
