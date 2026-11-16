@@ -2,12 +2,14 @@
 
 The setup is::
 
-    DOSE (A + G + C, linear) --> SBC (charged with I in H) --> slurry
+    FEED_A ------+
+    FEED_G ------+--> SBC (4 g I made up to 17 mL with H) --> slurry
+    FEED_C_in_H -+
 
 ``SBC`` is ``PharmaPy.Crystallizers_Refactored.SemiBatchCrystallizer``. It
 takes every input from ``semibatch_reactor``: the same charge (I in H), the
-same three linear feeds over 37 min, the same hold, vessel and
-jacket, and the reactor's selected rate law (``sbr.KINETICS_MODEL``, R02R
+same three linear feeds over 37 min, the same hold, vessel and thermal mode
+(70 C isothermal by default), and the reactor's selected rate law (``sbr.KINETICS_MODEL``, R02R
 by default; ``--kinetics`` here too) as a liquid reaction region. The
 only addition is that the products D, E and J can crystallize.
 
@@ -24,7 +26,8 @@ at far higher concentrations, so most of what forms crystallizes.
 Supersaturation is relative, ``sigma_i = (c_i - c_sat,i) / c_sat,i``, as in
 D01R.
 
-Known issue: about 10 % of the product does not close the mole
+Known issue: a few percent of the product (about 4 % with R02R kinetics,
+7 % with second order, at the default settings) does not close the mole
 balance. PharmaPy dilutes the crystal number density by the feed's volume
 flow, which overstates the vessel's growth here (the reactions destroy
 mass and liquid becomes denser crystal). See ``unaccounted_product``.
@@ -34,7 +37,8 @@ Run it with::
     python semibatch_crystallizer.py              # solve, save figures, show
     python semibatch_crystallizer.py --no-show    # solve and save figures only
 
-Figures are written to ``results/`` next to this file:
+Figures are written to ``results/`` next to this file (with a
+``_first_order`` or ``_second_order`` suffix for those models):
 
     SBC_profiles.png      species moles (liquid and solid), T, vessel contents
     SBC_normalized.png    the same totals over their peaks and over C fed
@@ -94,7 +98,6 @@ CRYSTAL_KV = D01R.CRYSTAL_KV
 # well inside the grid.
 LOSS_TOL = 1.0e-2
 
-SERIES_COLORS = sbr.SERIES_COLORS
 TEXT_MUTED = sbr.TEXT_MUTED
 
 
@@ -241,7 +244,7 @@ def unaccounted_product(tank) -> dict[str, float]:
       balance (the CSD plot shows whether any reach it);
     * PharmaPy's ``add_dilution_terms`` dilutes the number density by the
       feed's volumetric inflow, but here the vessel grows by less than
-      that: R02R's reactions destroy mass and the liquid becomes denser
+      that: the reactions destroy mass and the liquid becomes denser
       crystals. The population is over-diluted and crystals are lost.
 
     Refining the size grid does not change this gap, so at these settings
@@ -289,7 +292,8 @@ def plot_crystals(tank):
     conc = np.asarray(res.mole_conc_liquid0, dtype=float)
 
     fig, (ax_n, ax_s, ax_csd) = plt.subplots(1, 3, figsize=(15, 4.5))
-    for color, species in zip(SERIES_COLORS, CRYSTAL_SPECIES):
+    for species in CRYSTAL_SPECIES:
+        color = sbr.SPECIES_COLORS[species]  # as in the other figures
         ax_n.plot(time_min, solid[species], color=color, lw=2,
                   label=f"{species} crystals")
         ax_n.plot(time_min, liquid[species], color=color, lw=1.5,

@@ -31,8 +31,9 @@ a power law::
     first_order   R02R's reactions, first order in C:   r_i = k_i [C]
     second_order  a two-step mechanism through the intermediate F, every
                   step second order overall (SECOND_ORDER_REACTIONS):
-                      A + C --> F            r_1 = k_1 [A]^1.5 [C]^0.5
-                      F + G + I --> D/E/J + H   r = k [F][G]
+                      2 A + C --> F          r_1 = k_1 [A]^1.5 [C]^0.5
+                          (r_1 is per mole of A: C and F go at r_1 / 2)
+                      A + F + G + I --> D/E/J + H   r = k [F]^0.4 [G]^1.6
 
 with c in mol/L. The first- and second-order k and Ea are starting guesses
 for parameter estimation, not fitted values; the second-order k_1 was
@@ -61,8 +62,9 @@ and the final volume should be about ``EXPECTED_FINAL_VOLUME`` (76.21 mL).
 Feeds are specified in moles; PharmaPy computes their volumes from the
 database densities, and the run prints both against the quoted volumes.
 
-Every reaction consumes one each of A, C, G and I, so C (0.038 mol, against
-0.050 mol of I) caps the total product (D + E + J) at 0.038 mol.
+Every reaction path consumes one each of C, G and I and one A (three A
+in the second-order model: two to form F, one more to consume it), so C (0.038 mol, against 0.050 mol of I) caps the
+total product (D + E + J) at 0.038 mol.
 
 ``ISOTHERMAL = False`` switches back to R02R's jacket (``COOLANT_*``); then
 the heat of reaction (-622 kJ/mol) makes temperature a solved state.
@@ -85,7 +87,10 @@ Figures are written to ``results/`` next to this file (with a
     SBR_mass_balance.png  charged, dosed, reacted and final moles per species
 
 The concentration profiles are also written to
-``SBR_concentrations.xlsx`` with one column per database species.
+``SBR_concentrations.xlsx`` with one column per database species. The
+selected reaction definitions and parameters are included in a ``Reactions``
+worksheet; for example, ``--kinetics second_order`` writes
+``SBR_concentrations_second_order.xlsx``.
 
 """
 
@@ -157,33 +162,49 @@ KINETICS_MODEL = "R02R"
 # Multiplies every rate constant of the selected model, here only (R02R's
 # own values are untouched). 0.1 = reactions 10x slower; 1.0 = as given.
 RATE_SCALE = 0.1
-# Second-order model: rate constant of A + C --> F [(L/mol)/s, before
-# RATE_SCALE], found by guess and check (see SECOND_ORDER_REACTIONS): at
-# RATE_SCALE = 0.1, 0.005 -> C runs out at 16.9 min, 0.006 -> 14.7,
-# 0.007 -> 13.1, 0.008 -> 11.8, 0.01 -> 10.1.
-F_FORMATION = 8.0e-3
+# Second-order model: rate constant of 2 A + C --> F [L/mol/s, before
+# RATE_SCALE], found by guess and check (see SECOND_ORDER_REACTIONS). With
+# the second step also using an A (3 A per product), at RATE_SCALE = 0.1
+# and the F_CONSUMPTION below: 0.022 -> C runs out at 12.1 min,
+# 0.025 -> 11.1, 0.028 -> 10.2. (Before that A was added, 0.018 gave
+# 12.2 min: the extra A lowers [A], and F forms at [A]^1.5.)
+F_FORMATION = 2.2e-2
+# Second-order model: rate constants of A + F + G + I --> D, E, J [L/mol/s,
+# before RATE_SCALE], split 74/20/6 and scaled together by guess and check
+# so F runs out a few seconds after C. As multiples of (0.074, 0.020,
+# 0.006), at F order 0.4 and k_1 = 0.022: x0.095 -> F out 19.5 s after C,
+# x0.097 -> 10.9 s, x0.098 -> 6.8 s, x0.0985 -> 4.8 s, x0.099 -> 2.8 s,
+# x0.10 -> 1.1 s before, x0.103 -> 12.9 s before.
+F_CONSUMPTION = (7.289e-3, 1.97e-3, 5.91e-4)
 
 KINETICS_TEMP_REF = R02R.KINETICS_TEMP_REF  # K, k below are quoted here
 
 # The second-order option's mechanism (R02R's reactions are not changed):
-# A and C first form the intermediate F, which then reacts with G and I to
-# the irreversible products. Every step is second order overall:
-#     A + C --> F           r_1 = k_1 [A]^1.5 [C]^0.5
-#     F + G + I --> D + H   r_2 = k_2 [F][G]
-#     F + G + I --> E + H   r_3 = k_3 [F][G]
-#     F + G + I --> J + H   r_4 = k_4 [F][G]
-# I keeps its R02R stoichiometry but has order 0. Overall, as in R02R:
-#     A + C + G + I --> D/E/J + H
+# 2 A and C first form the intermediate F, which then reacts with A, G and
+# I to the irreversible products. Every step is second order overall:
+#     2 A + C --> F         r_1 = k_1 [A]^1.5 [C]^0.5
+#         PharmaPy takes a reaction's rate per mole of its first reactant
+#         in database order, here A: A goes at r_1, C and F at r_1 / 2.
+#     A + F + G + I --> D + H   r_2 = k_2 [F]^0.4 [G]^1.6
+#     A + F + G + I --> E + H   r_3 = k_3 [F]^0.4 [G]^1.6
+#     A + F + G + I --> J + H   r_4 = k_4 [F]^0.4 [G]^1.6
+#         A (now first in database order) and F are both 1:1, so the rate
+#         basis is unchanged.
+# A and I take part in the second step at order 0. Overall, R02R's
+# reaction with two more A:
+#     3 A + C + G + I --> D/E/J + H
 # The half order in C is what lets C run out while it is still being fed:
 # with first order in C, the C held settles to feed / (k [A]) and only
-# levels off as [A] plateaus. When C runs out is not imposed; it follows
-# from k_1, which was picked by guess and check (C_DEPLETION_FRACTION
-# defines "runs out" for the printed check).
+# levels off as [A] plateaus. F is the same: at first order (and at half
+# order, which leaves F hovering at the 5 % mark) F tracks its formation
+# rate and never runs out while C is fed; at order 0.4 it does. When C and
+# F run out is not imposed; it follows from k_1..k_4, picked by guess and
+# check (RUNOUT_FRACTION defines "runs out" for the printed check).
 SECOND_ORDER_REACTIONS = [
-    "A + C --> F",
-    "F + G + I --> D + H",
-    "F + G + I --> E + H",
-    "F + G + I --> J + H",
+    "2 A + C --> F",
+    "A + F + G + I --> D + H",
+    "A + F + G + I --> E + H",
+    "A + F + G + I --> J + H",
 ]
 
 # Each model: its reactions and heats of reaction, orders per reaction
@@ -209,19 +230,21 @@ KINETIC_MODELS = {
     },
     "second_order": {
         "reactions": SECOND_ORDER_REACTIONS,
-        # R02R's -622 kJ/mol per path, split evenly over the two steps.
-        "delta_h": np.array([-3.11e5, -3.11e5, -3.11e5, -3.11e5]),
-        "orders": [{"A": 1.5, "C": 0.5}] + [{"F": 1.0, "G": 1.0}] * 3,
-        # k_1 (F formation) is F_FORMATION; k_2..k_4 split F 74/20/6 into
-        # D/E/J and are fast enough that F stays small.
-        "k": np.array([F_FORMATION, 0.074, 0.020, 0.006]),
+        # R02R's -622 kJ/mol per path is assigned to the product-forming
+        # second step; intermediate formation is thermally neutral here.
+        "delta_h": np.array([0.0, -6.22e5, -6.22e5, -6.22e5]),
+        "orders": [{"A": 1.5, "C": 0.5}] + [{"F": 0.4, "G": 1.6}] * 3,
+        # k_1 (F formation) is F_FORMATION; k_2..k_4 (F_CONSUMPTION) split
+        # F 74/20/6 into D/E/J.
+        "k": np.array([F_FORMATION, *F_CONSUMPTION]),
         "ea": np.array([5.0e4, 5.0e4, 5.0e4, 5.0e4]),
         "k_units": "L/mol/s",
         # Separate kinetics objects for F formation and F consumption.
         # PharmaPy's RxnKinetics scales every reaction it holds by one
         # factor when any species would go negative; at half order in C,
         # the formation rate stays nonzero at [C] = 0, so in one object it
-        # froze F --> D/E/J whenever C ran out.
+        # froze F --> D/E/J whenever C ran out. The three F-consuming steps
+        # share one object, so F running out throttles only them.
         "groups": [[0], [1, 2, 3]],
     },
 }
@@ -231,8 +254,9 @@ NORMALIZE_BASIS = "C"
 # Species on the normalized plot's left panel (I left out; F is added
 # when the model makes it).
 NORMALIZED_SPECIES = ("A", "G", "C", "D", "E", "J")
-# C counts as run out once it falls below this share of its peak.
-C_DEPLETION_FRACTION = 0.05
+# A species (C, F) counts as run out once it falls below this share of
+# its peak.
+RUNOUT_FRACTION = 0.05
 
 # Species plotted and tabulated, in order: dosed, charged, products, and
 # the intermediate F when the model makes it (report_species).
@@ -495,20 +519,20 @@ def estimation_flags(fit=("k", "Ea"), model: str | None = None) -> list[bool]:
     return [name.startswith(prefixes) for name in parameter_names(model)]
 
 
-def c_depletion_time(reactor) -> float:
-    """When C runs out [s]: the first time after its peak that the C held
-    drops below C_DEPLETION_FRACTION of that peak (nan if it never does)."""
+def runout_time(reactor, species: str = "C") -> float:
+    """When ``species`` runs out [s]: the first time after its peak that
+    the amount held drops below RUNOUT_FRACTION of that peak (nan if it
+    never does)."""
     time = np.asarray(reactor.result.time, dtype=float)
-    n_c = mole_history(reactor)["C"]
-    peak = int(np.argmax(n_c))
-    below = np.nonzero(n_c[peak:] < C_DEPLETION_FRACTION * n_c[peak])[0]
+    n = mole_history(reactor)[species]
+    peak = int(np.argmax(n))
+    below = np.nonzero(n[peak:] < RUNOUT_FRACTION * n[peak])[0]
     if below.size == 0:
         return float("nan")
     i = peak + int(below[0])
     # Interpolate the crossing between the two bracketing solver points.
-    level = C_DEPLETION_FRACTION * n_c[peak]
-    return float(np.interp(level, [n_c[i], n_c[i - 1]],
-                           [time[i], time[i - 1]]))
+    level = RUNOUT_FRACTION * n[peak]
+    return float(np.interp(level, [n[i], n[i - 1]], [time[i], time[i - 1]]))
 
 
 def parameter_table(reactor) -> list[tuple[str, float]]:
@@ -601,10 +625,34 @@ def export_concentration_profiles(
     }
     settings = {
         "Kinetics model": KINETICS_MODEL,
+        "Rate scale": RATE_SCALE,
         "Temperature mode": "isothermal" if ISOTHERMAL else "jacketed",
+        "Temperature [K]": INITIAL_TEMPERATURE,
+        "Dose time [s]": DOSE_TIME,
+        "Hold time [s]": HOLD_TIME,
         "Database": str(DB_PATH),
         "Species": ", ".join(reactor.name_species),
     }
+    spec = kinetic_model()
+    names = species_names()
+    reaction_rows = [
+        {
+            "Reaction": reaction,
+            # PharmaPy's rate is per mole of the first reactant in database
+            # order (2 A + C --> F: per mole of A, so C goes at half).
+            "Rate per mole of": min(reactants(reaction), key=names.index),
+            "Orders": ", ".join(f"{name}={value:g}"
+                               for name, value in orders.items()),
+            f"k at T_ref, scaled [{spec['k_units']}]":
+                rate_constant * RATE_SCALE,
+            "T_ref [K]": KINETICS_TEMP_REF,
+            "Activation energy [J/mol]": activation_energy,
+            "Heat [J/mol]": heat,
+        }
+        for reaction, heat, rate_constant, activation_energy, orders in zip(
+            spec["reactions"], spec["delta_h"], spec["k"], spec["ea"],
+            spec["orders"])
+    ]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
@@ -613,6 +661,8 @@ def export_concentration_profiles(
         pd.DataFrame(
             {"Setting": list(settings), "Value": list(settings.values())}
         ).to_excel(writer, sheet_name="Run info", index=False)
+        pd.DataFrame(reaction_rows).to_excel(
+            writer, sheet_name="Reactions", index=False)
     return out_path
 
 
@@ -938,8 +988,10 @@ if __name__ == "__main__":
     sbr = run_reactor()
     print_parameters(sbr)
     if "F" in report_species():
-        print(f"C runs out at {c_depletion_time(sbr) / 60:.2f} min "
-              f"(below {C_DEPLETION_FRACTION:.0%} of its peak)")
+        t_c, t_f = runout_time(sbr, "C"), runout_time(sbr, "F")
+        print(f"C runs out at {t_c:.1f} s ({t_c / 60:.2f} min), F at "
+              f"{t_f:.1f} s ({t_f - t_c:+.1f} s after C); below "
+              f"{RUNOUT_FRACTION:.0%} of each peak")
     print_summary(sbr)
     save_figures(sbr)
     print(f"Figures saved to {RESULTS_DIR}")
