@@ -58,10 +58,11 @@ HERE = Path(__file__).resolve().parent          # Project work/F01H
 ROOT = HERE.parents[1]                          # AuggiesWorld
 
 R01H_DIR = ROOT / "Project work" / "R01H"
+CR01H_DIR = ROOT / "Project work" / "CR01H"
 DB_PATH = ROOT / "compounddatabase" / "compound_databaseActual.json"
 FILTER_DIR = ROOT / "CustomUnitOps"
 
-sys.path[:0] = [str(FILTER_DIR), str(R01H_DIR)]
+sys.path[:0] = [str(FILTER_DIR), str(R01H_DIR), str(CR01H_DIR)]
 
 from continuous_filter import (  # noqa: E402
     ContinuousFilter, SlurryFlow, flow_from_vessel)

@@ -13,8 +13,11 @@ antisolvent. R02R runs in H, so its outlet holds no B. B lowers the
 solubility of D and E faster than it dilutes them, and each crystallizes as
 its own solid phase with its own population balance, nucleation, growth and
 dissolution kinetics. J, R02R's third product, dissolves in B and stays in
-the liquid: it has no solid phase here, so it leaves with the mother liquor
-(Filtrate 2 in the flowsheet) apart from what the cake liquid carries on.
+the liquid, leaving with the mother liquor (Filtrate 2 in the flowsheet)
+apart from what the cake liquid carries on. J still has a solid phase, with
+a fixed solubility (``J_SOLUBILITY``) far above its concentration and only
+dissolution kinetics: in the flowsheet CR02R sends J crystals, which
+dissolve here. Standalone the R02R outlet carries none, so it stays empty.
 The R02R reactions are not carried into the tank: D01R only crystallizes.
 
 Solubility of each crystallizing species i (mol/L), with B as antisolvent::
@@ -104,9 +107,13 @@ import R02R  # noqa: E402
 DB_PATH = R02R.DEFAULT_DATABASE_PATH
 
 # ---------------------------------------------------------------- settings
-# J is left out: it dissolves in B and stays liquid (see the module docstring).
-# F01R, D02R, F02R and D03R take their solid phases from this tuple.
+# The species that crystallize here. F01R, D02R, F02R and D03R take their
+# solid phases from this tuple.
 CRYSTAL_SPECIES = ("D", "E")
+# J dissolves in B (see the module docstring). It still gets a solid phase,
+# last, so that J crystals arriving from CR02R in the flowsheet dissolve
+# through PharmaPy's own dissolution kinetics; standalone none arrive.
+SOLID_SPECIES = CRYSTAL_SPECIES + ("J",)
 SOLVENT_NAME = "B"  # the tank charge (R02R's solvent is H)
 ANTISOLVENT_NAME = "B"
 
@@ -133,12 +140,19 @@ SOLUBILITY_S0 = {"D": 0.0284, "E": 0.01505}  # mol/L
 # exp(-K_B * 19.4) = 0.021, so ~96 % crystallized; ANTISOLVENT_FLOW now
 # doubles that B feed. 0.0364 (0.49 at steady state) crystallizes ~4 %.
 ANTISOLVENT_K_B = 0.2
+# J's solubility [mol/L], with no antisolvent effect: J dissolves in B. About
+# 25x the J the flowsheet brings in (~0.004 mol/L dissolved plus crystals), so
+# J crystals always meet undersaturated liquid (sigma ~ -0.96).
+J_SOLUBILITY = 0.1
 
 # Kinetics per species, (k, E_a [J/mol], order). Units: nucleation
 # #/(s m**3 slurry), growth and dissolution um/s.
-NUCL_PRIM = {name: (1.0e10, 0.0, 2.0) for name in CRYSTAL_SPECIES}
-NUCL_SEC = {name: (0.0, 0.0, 0.0, 0.0) for name in CRYSTAL_SPECIES}
-GROWTH = {name: (10.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
+# J only dissolves: its nucleation and growth are off.
+NUCL_PRIM = {**{name: (1.0e10, 0.0, 2.0) for name in CRYSTAL_SPECIES},
+             "J": (0.0, 0.0, 2.0)}
+NUCL_SEC = {name: (0.0, 0.0, 0.0, 0.0) for name in SOLID_SPECIES}
+GROWTH = {**{name: (10.0, 0.0, 1.0) for name in CRYSTAL_SPECIES},
+          "J": (0.0, 0.0, 1.0)}
 # Dissolution kinetics for each species: k_d is the shrink rate [um/s] at
 # sigma = -1 (crystals in solute-free liquid). 50 um/s is still fast: a
 # 1 mm crystal dissolves in ~20 s at sigma = -1, against a ~0.8 h residence
@@ -149,6 +163,7 @@ GROWTH = {name: (10.0, 0.0, 1.0) for name in CRYSTAL_SPECIES}
 DISSOLUTION = {
     "D": (50.0, 0.0, 1.0),
     "E": (50.0, 0.0, 1.0),
+    "J": (50.0, 0.0, 1.0),
 }
 
 # um. Crystals that grow past the last cell leave the population balance
@@ -200,8 +215,15 @@ def antisolvent_stream(names) -> LiquidStream:
 
 
 def make_solubility_function(names, species: str):
-    """c_sat of ``species`` [mol/L] from the liquid's antisolvent content."""
+    """c_sat of ``species`` [mol/L] from the liquid's antisolvent content
+    (J: the constant J_SOLUBILITY)."""
     index_b = names.index(ANTISOLVENT_NAME)
+
+    if species == "J":
+        def solubility(temp, conc):
+            return np.full(np.shape(conc)[:-1], J_SOLUBILITY)
+        return solubility
+
     s0 = SOLUBILITY_S0[species]
 
     def solubility(temp, conc):
@@ -243,7 +265,7 @@ def build_crystallizer(feed: MixedStream) -> ContinuousCrystallizer:
         name_solv=SOLVENT_NAME)
 
     solids = []
-    for species in CRYSTAL_SPECIES:
+    for species in SOLID_SPECIES:
         mass_frac = np.zeros(len(names))
         mass_frac[names.index(species)] = 1.0
         solid = SolidPhase(str(DB_PATH), temp=CRYSTALLIZER_TEMPERATURE,
@@ -257,7 +279,7 @@ def build_crystallizer(feed: MixedStream) -> ContinuousCrystallizer:
     tank.Phases = [liquid] + solids
 
     connections = []
-    for k, species in enumerate(CRYSTAL_SPECIES):
+    for k, species in enumerate(SOLID_SPECIES):
         solid_ref = PhaseRef("solid", k)
         kinetics = CrystKinetics(
             solub_fn=make_solubility_function(names, species),
@@ -347,12 +369,12 @@ def history(tank) -> SimpleNamespace:
     mw = tank.Phases.Liquids[0].mw
 
     distribs = [np.asarray(getattr(res, f"distrib_solid{k}"), dtype=float)
-                for k in range(len(CRYSTAL_SPECIES))]
+                for k in range(len(SOLID_SPECIES))]
     volumes = slurry_volumes(tank, distribs, vessel_vol)
 
     out = SimpleNamespace(time=time, crystal_mass={}, crystal_conc={},
                           conc={}, solubility={}, fraction_crystallized={})
-    for k, species in enumerate(CRYSTAL_SPECIES):
+    for k, species in enumerate(SOLID_SPECIES):
         j = names.index(species)
         crystal_kg_m3 = distribs[k] @ crystal_weight(tank, k)
         out.crystal_mass[species] = crystal_kg_m3 * volumes[k]
@@ -400,11 +422,11 @@ def final_balance(tank) -> SimpleNamespace:
     rates = np.asarray(rates, dtype=float)
     volumes = slurry_volumes(
         tank, [np.asarray(getattr(res, f"distrib_solid{k}"))[-1]
-               for k in range(len(CRYSTAL_SPECIES))],
+               for k in range(len(SOLID_SPECIES))],
         float(np.ravel(res.vessel_vol)[-1]))
 
     crystal = {}
-    for k, species in enumerate(CRYSTAL_SPECIES):
+    for k, species in enumerate(SOLID_SPECIES):
         cells = slices[next(key for key in slices
                             if key.name == "distrib"
                             and key.phaseref == PhaseRef("solid", k))]
@@ -436,8 +458,11 @@ def steady_state_gap(balance: SimpleNamespace) -> float:
     """Largest relative accumulation: liquid species against the feed flow,
     crystal species against their rate of formation."""
     liquid = np.abs(balance.accumulation).max() / balance.inlet.sum()
-    crystals = [abs(t["accumulation"]) / max(abs(t["growth"]), 1e-30)
-                for t in balance.crystal.values()]
+    # J only dissolves what is fed, so its scale is the feed, not growth.
+    crystals = [abs(t["accumulation"])
+                / max(abs(t["growth"]), abs(t["inlet"]), 1e-30)
+                for t in balance.crystal.values()
+                if max(abs(v) for v in t.values()) > 1e-15]
     return float(max([liquid] + crystals))
 
 
@@ -520,13 +545,15 @@ def plot_csd(tank):
 
     res = tank.result
     fig, ax = plt.subplots(figsize=(9, 5))
-    for k, (species, color) in enumerate(zip(CRYSTAL_SPECIES,
+    for k, (species, color) in enumerate(zip(SOLID_SPECIES,
                                              SERIES_COLORS)):
         pbm = population_balance(tank, k)
         x, dx = np.asarray(pbm.x_grid), pbm.dx
         mass = np.asarray(getattr(res, f"distrib_solid{k}"))[-1] * x**3 * dx
         total = mass.sum()
-        w = mass / total / dx if total > 0 else mass
+        if total <= 0:  # J, unless J crystals were fed
+            continue
+        w = mass / total / dx
         mean = np.sum(w * x * dx)
         ax.plot(x, w * 100, color=color, lw=2,
                 label=f"{species}  (mean {mean:.0f} um)")

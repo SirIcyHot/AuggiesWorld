@@ -2,7 +2,7 @@
 
 The process, as ``Flowsheet.py`` couples it in one ConcurrentVessel::
 
-    CR01H -> CR02H -> F01H -> W02H -> D01H -> R02R -> D01R -> F01R -> W02R
+    CR01H -> CR02H -> F01H -> W02H -> D01H -> CR02R -> D01R -> F01R -> W02R
           -> D03R
 
 Each wash block is two unit ops, drawn as one block: W02H is the D02H
@@ -56,7 +56,7 @@ def describe_class(unit) -> dict:
     """A vessel's PharmaPy class, plus any project subclass on top of it.
 
     ``name`` is the first PharmaPy class in the MRO, i.e. what the unit is at
-    heart (R02R's BalanceRecordingReactor is reported as ContinuousReactor).
+    heart (a project subclass is reported as its PharmaPy base).
     ``subclass`` is a project class between the two, if any, and ``mixins``
     the Flowsheet mixins that ``with_true_slurry_feed`` adds.
     """
@@ -117,7 +117,8 @@ def solve_flowsheet() -> dict:
 
     # Dissolution rate constants k_d [um/s] of the units that dissolve.
     # D02R has none (assumption A6).
-    dissolution = {"D01R": fs.D01R.DISSOLUTION, "D03R": fs.D03R.DISSOLUTION}
+    dissolution = {"CR02R": fs.CR02R.DISSOLUTION, "D01R": fs.D01R.DISSOLUTION,
+                   "D03R": fs.D03R.DISSOLUTION}
 
     units = {}
     for name, unit in cv.members.items():
@@ -186,6 +187,18 @@ def product_dissolved(data: dict) -> dict[str, float]:
     return dict(sorted(out.items()))
 
 
+def cr02r_crystallized(data: dict) -> dict[str, float]:
+    """Crystal share of each product in CR02R's discharge."""
+    record = data["streams"]["CR02R out"]
+    out = {}
+    for name in ("D", "E", "J"):
+        solid = record["solid"].get(name, 0.0)
+        liquid = record["liquid"].get(name, 0.0)
+        if liquid + solid > 0:
+            out[name] = solid / (liquid + solid)
+    return out
+
+
 def percent_list(values: dict) -> str:
     return "  ".join(f"{name} {value:.0%}" for name, value in values.items())
 
@@ -206,6 +219,7 @@ def wash_dissolved(streams: dict, block: str) -> float:
 # What the process is meant to do, checked against the solve.
 CR01H_CRYSTAL_LIMIT = 1e-3  # share of CR01H's F that may leave as crystals
 D03R_DISSOLVED_TARGET = 0.95  # "almost completely" dissolved
+CR02R_CRYSTALLIZED_RANGE = (0.15, 0.25)  # "about 20 %" of each product
 WASH_DISSOLVED_LIMIT = 0.10  # a wash should dissolve very little
 SETTLED_LIMIT = 0.01  # change over the last 10 % of the run
 
@@ -213,18 +227,18 @@ SETTLED_LIMIT = 0.01  # change over the last 10 % of the run
 DRAWN_IN = {"D02H": "W02H", "D02R": "W02R"}
 
 ASSUMPTIONS = [
-    "A1  The solid F that D01H passes on as slurry dissolves quickly and "
-    "completely in R02R's liquid, then reacts. R02R has no solid phase, so "
-    "the D01H -> R02R link turns crystal mass into dissolved F, conserving "
-    "mass.",
+    "A1  A solid the next unit has no phase for dissolves inside the link, "
+    "conserving mass: CR02R's leftover F crystals into D01R, and the J "
+    "crystals in the F01R cake into D02R. Both are trace flows.",
     "A2  F01H, F02H, F01R and F02R are steady-state splits evaluated inside "
     "the links (ContinuousFilter settings, no holdup), not vessels. F02H "
     "and F02R use the settings of F01H and F01R.",
     "A3  The solubility S0 of D02H and D01H is fixed at CR02H's design "
     "mother liquor (Flowsheet.CAKE_LIQUID_DESIGN).",
-    "A4  R02R's outlet is all liquid. D, E and J would start to come out of "
-    "solution in R02R, but the model assumes no solids form there; all "
-    "crystallization happens in D01R.",
+    "A4  CR02R's Apelblat solubilities are made up: F's is high so its "
+    "crystals dissolve, and D's, E's and J's are set so ~20 % of each "
+    "crystallizes there. D01R gives J a fixed high solubility, so J only "
+    "dissolves.",
     "A5  W02H and W02R are each two unit ops, a dissolver vessel (D02H, "
     "D02R) and a filter link (F02H, F02R), drawn as one block.",
     "A6  D02R's crystals pass through unchanged (no nucleation, growth or "
@@ -245,6 +259,14 @@ def find_warnings(data: dict) -> dict[str, str]:
         out["CR01H"] = (f"CR01H crystallizes {crystals * 1e3:.3g} g/s of F "
                         f"({crystals / f_total:.0%} of its F); it should "
                         "stay liquid.")
+
+    low, high = CR02R_CRYSTALLIZED_RANGE
+    off = {n: v for n, v in cr02r_crystallized(data).items()
+           if not low <= v <= high}
+    if off:
+        out["CR02R"] = ("CR02R crystallizes " + percent_list(off) + "; the "
+                        f"target is ~20 % ({low:.0%}-{high:.0%}). Retune "
+                        "CR02R.SOLUBILITY_APELBLAT.")
 
     short = {n: v for n, v in product_dissolved(data).items()
              if v < D03R_DISSOLVED_TARGET}
@@ -342,7 +364,7 @@ ROLES = {
     "F01H": "filter",
     "W02H": "wash: D02H dissolver (H) + F02H filter",
     "D01H": "dissolver (H)",
-    "R02R": "jacketed CSTR, liquid only",
+    "CR02R": "reactive crystallizer, R02R's reactions",
     "D01R": "antisolvent crystallizer (B)",
     "F01R": "filter",
     "W02R": "wash: D02R dissolver (B) + F02R filter",
@@ -582,8 +604,8 @@ def draw_map(data: dict):
     filter_box(ax, data, "F01H", c3, ROW_1)
     wash_box(ax, data, "W02H", c4, ROW_1)
     vessel_box(ax, data, "D01H", c5, ROW_1)
-    vessel_box(ax, data, "R02R", c1, ROW_2,
-               ["ASSUMPTION A4: no solids form here"])
+    vessel_box(ax, data, "CR02R", c1, ROW_2,
+               ["crystallized  " + percent_list(cr02r_crystallized(data))])
     vessel_box(ax, data, "D01R", c2, ROW_2)
     filter_box(ax, data, "F01R", c3, ROW_2)
     wash_box(ax, data, "W02R", c4, ROW_2)
@@ -594,7 +616,7 @@ def draw_map(data: dict):
     # A badge on each unit with a warning; the text is in the panel below.
     tags = {name: f"W{i}" for i, name in enumerate(warnings, start=1)}
     centres = {"CR01H": (c1, ROW_1), "CR02H": (c2, ROW_1), "F01H": (c3, ROW_1),
-               "W02H": (c4, ROW_1), "D01H": (c5, ROW_1), "R02R": (c1, ROW_2),
+               "W02H": (c4, ROW_1), "D01H": (c5, ROW_1), "CR02R": (c1, ROW_2),
                "D01R": (c2, ROW_2), "F01R": (c3, ROW_2), "W02R": (c4, ROW_2),
                "D03R": (c5, ROW_2)}
     for name, tag in tags.items():
@@ -630,22 +652,24 @@ def draw_map(data: dict):
     pipe(ax, [(c5, bottom_1), (c5, mid_cards + CARD_H)], phase_of("D01H out"))
     centred_card("D01H out", c5, mid_cards)
 
-    # ---- D01H -> R02R: crystals become dissolved F inside the link (A1).
-    # The route runs under the filtrate cards, then down into R02R.
-    link = next(item for item in data["links"] if item["sink"] == "R02R")
+    # ---- D01H -> CR02R: the slurry passes on; CR02R dissolves the F.
+    # The route runs under the filtrate cards, then down into CR02R.
+    link = next(item for item in data["links"] if item["sink"] == "CR02R")
     pill_x = 9.2
     pipe(ax, [(c5, mid_cards), (c5, route_y), (pill_x + 2.0, route_y)],
          phase_of("D01H out"), head=False)
-    pipe(ax, [(pill_x - 2.0, route_y), (4.4, route_y), (4.4, top_2)], "liquid")
+    pipe(ax, [(pill_x - 2.0, route_y), (4.4, route_y), (4.4, top_2)],
+         phase_of("D01H out"))
     note(ax, pill_x, route_y,
-         "ASSUMPTION A1: solid F dissolves quickly, then reacts\n"
-         f"({link['coupling']}: slurry in, liquid out to R02R)")
+         f"{link['coupling']}: D01H's F crystals into CR02R's F solid,\n"
+         "where they dissolve and react")
 
     # ---- row 2
-    card(ax, streams, "R02R makeup", 0.25, feed_row_2)
+    card(ax, streams, "CR02R makeup", 0.25, feed_row_2)
     pipe(ax, [(2.4, feed_row_2), (2.4, top_2)], "liquid")
-    pipe(ax, [(c1 + half_w, ROW_2), (c2 - half_w, ROW_2)], "liquid")
-    gap_card("R02R out", c1, above_row_2)
+    pipe(ax, [(c1 + half_w, ROW_2), (c2 - half_w, ROW_2)],
+         phase_of("CR02R out"))
+    gap_card("CR02R out", c1, above_row_2)
 
     centred_card("Feed B", c2, low_cards)
     pipe(ax, [(c2, low_cards + CARD_H), (c2, bottom_2)], "liquid")

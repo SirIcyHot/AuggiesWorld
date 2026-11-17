@@ -26,8 +26,8 @@ A-dependent solubility correlation.
 
 Run it with::
 
-    python R01H.py                # solve, save figures, show them
-    python R01H.py --no-show      # solve and save figures only
+    python CR01H.py                # solve, save figures, show them
+    python CR01H.py --no-show      # solve and save figures only
 
 Figures are written to ``results/`` next to this file:
 
@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 import numpy as np
@@ -67,7 +68,12 @@ from PharmaPy.Phases_Refactored import LiquidPhase, SolidPhase
 from PharmaPy.Crystallizers_Refactored import ContinuousCrystallizer
 from PharmaPy.Reactive_Crystallizers import ContinuousReactiveCrystallizer
 from PharmaPy.Utilities import CoolingWater
-from R01H import (
+# R01H (the reaction this crystallizer inherits) has its own folder.
+HERE = Path(__file__).resolve().parent          # Project work/CR01H
+sys.path.insert(0, str(HERE.parent / "R01H"))
+RESULTS_DIR = HERE / "results"
+
+from R01H import (  # noqa: E402
     ACTIVATION_ENERGIES,
     COOLANT_H_CONV,
     COOLANT_MASS_FLOW,
@@ -88,7 +94,6 @@ from R01H import (
     REACTOR_H_CONV,
     REACTOR_VOLUME,
     REACTIONS,
-    RESULTS_DIR,
     SERIES_COLORS,
     NUM_RESIDENCE_TIMES,
     STEADY_STATE_TOL,

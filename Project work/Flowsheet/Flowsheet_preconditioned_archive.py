@@ -104,7 +104,7 @@ PROJECT = HERE.parent                           # Project work
 RESULTS_DIR = HERE / "results_preconditioned"
 
 for folder in ("D03R", "F02R", "D02R", "F01R", "D01R", "R02R", "F02H", "D02H",
-               "D01H", "F01H", "R01H"):
+               "D01H", "F01H", "R01H", "CR02H", "CR01H"):
     sys.path.insert(0, str(PROJECT / folder))
 
 import CR01H  # noqa: E402

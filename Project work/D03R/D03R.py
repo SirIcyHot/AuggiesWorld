@@ -25,16 +25,16 @@ size distribution shape, and its own crystal mass flow exactly. The cake
 enters as one stream (liquid, then the D and E solids, in that order);
 PharmaPy maps a feed's k-th solid onto the vessel's k-th solid.
 
-Solubility of each species i (mol/L), with L as the dissolving solvent::
+Solubility of each species i in L, as an Apelblat fit (T in K)::
 
-    c_sat,i = S0_i * exp(K_L * [L])
+    ln S_i = A_i + B_i / T + C_i ln T        S_i [kg i / kg L]
 
-S0_i is the solubility in L-free liquid (R02R's H-based liquid); for now
-D and E share one value, the S0 D01R used for J. K_L > 0, so L raises the
-solubility. It was set, for an earlier F01R cake, so that at
-D03R's steady [L] (~11 mol/L) the solubility sits just below what full
-dissolution of the cake crystals would give: D and E dissolve almost
-completely. Raise K_L or L_FLOW to dissolve the rest.
+PharmaPy evaluates it (CrystKinetics, solubility_type="apelblat") and
+compares it with the liquid on the same basis, kg of i per kg of L
+(solubility_basis="mass_per_mass_solvent"). Only L counts as solvent:
+the H that arrives with the cake liquid is not in the denominator.
+L_FLOW is set so the liquid stays below saturation and D and E dissolve
+almost completely; lower it and the liquid saturates instead.
 
 Crystallization rates (PharmaPy's CrystKinetics), relative supersaturation
 sigma_i = (c_i - c_sat,i) / c_sat,i::
@@ -68,6 +68,7 @@ Figures are written to ``results/`` next to this file:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -107,27 +108,32 @@ DB_PATH = F01R.DEFAULT_DATABASE_PATH
 CRYSTAL_SPECIES = F01R.CRYSTAL_SPECIES  # ("D", "E")
 SOLVENT_NAME = "L"  # the tank charge (the cake liquid's solvent is H)
 
-# Fresh solvent feed, pure L.
-L_FLOW = 2.0e-3  # kg/s
+# Fresh solvent feed, pure L. Solubility sets the minimum: at the 20 C tank
+# the cake's D (~0.93 g/s) needs ~7.1 g/s of L to dissolve fully (E needs
+# ~3.9). 8 g/s leaves the liquid at ~86 % of D's saturation, so D still
+# dissolves. At the old 2 g/s the liquid saturated and only ~28 % of D
+# (51 % of E) dissolved.
+L_FLOW = 8.0e-3  # kg/s
 L_TEMPERATURE = 25 + 273.15  # K
 
-# Tank charge: pure L. Its mass sets the residence time: 7.5 kg gives
-# ~50 min at the flowsheet's ~2.5 g/s feed (was 2.5 kg, ~17 min), room for
-# the slower dissolution below.
-INITIAL_MASS = 7.5  # kg
+# Tank charge: pure L. Its mass sets the residence time: 31 kg gives
+# ~50 min at the ~10.4 g/s total feed. A shorter stay is kinetics-limited:
+# 7.5 kg (12 min) dissolved only ~91 % of D at 8 g/s.
+INITIAL_MASS = 31.0  # kg
 INITIAL_COMPOSITION = {}  # solute mass fractions; solvent is the remainder
 # None: held at the cake temperature (isothermal tank).
 DISSOLVER_TEMPERATURE = None  # K
 DISSOLVER_DIAMETER = 0.15  # m
 
-# Solubility c_sat = S0 exp(K_L [L]) [mol/L]. For now D and E share one
-# S0, D01R's J value (R02R's liquid, no L); D01R's own per-species values
-# were D 0.0284, E 0.01505, J 0.0886. L/mol: each 1 mol/L of L multiplies
-# every solubility by exp(K_L) = 1.18. Both were tuned for an earlier F01R
-# cake (~98.6 % dissolved); retune them for the current one.
-SHARED_SOLUBILITY_S0 = 0.0886  # mol/L
-SOLUBILITY_S0 = {name: SHARED_SOLUBILITY_S0 for name in CRYSTAL_SPECIES}
-SOLVENT_K_L = 0.166
+# Apelblat coefficients (A, B, C) of each species in L:
+# ln S = A + B/T + C ln T, S in kg solute / kg L, T in K. At 25 C they give
+# D 0.147 and E 0.211 kg/kg L. (Replaced the earlier S0 exp(K_L [L]) mol/L
+# model, S0 = 0.0886 mol/L and K_L = 0.166 L/mol.)
+SOLUBILITY_APELBLAT = {
+    "D": (-40.8721, -0.00214, 6.836632),
+    "E": (-21.0593, -0.01149, 3.422698),
+}
+SOLUBILITY_BASIS = "mass_per_mass_solvent"
 
 # Kinetics per species, (k, E_a [J/mol], order), D01R's nucleation and
 # growth. Units: nucleation #/(s m**3 slurry), growth and dissolution um/s.
@@ -242,16 +248,22 @@ def l_stream(names) -> LiquidStream:
         name_solv=SOLVENT_NAME, verbose=False)
 
 
-def make_solubility_function(names, species: str):
-    """c_sat of ``species`` [mol/L] from the liquid's L content."""
-    index_l = names.index(SOLVENT_NAME)
-    s0 = SOLUBILITY_S0[species]
+def solubility(species: str, temp):
+    """Apelblat solubility of ``species`` [kg/kg L] at ``temp`` [K]; the
+    same expression PharmaPy's CrystKinetics evaluates."""
+    a, b, c = SOLUBILITY_APELBLAT[species]
+    temp = np.asarray(temp, dtype=float)
+    return np.exp(a + b / temp + c * np.log(temp))
 
-    def solubility(temp, conc):
-        conc = np.asarray(conc)
-        return s0 * np.exp(SOLVENT_K_L * conc[..., index_l])
 
-    return solubility
+def mass_per_mass_solvent(names, mole_conc) -> np.ndarray:
+    """Liquid composition [mol/L, species last] -> kg of each species per
+    kg of L, the basis the solubility is stated in."""
+    with open(DB_PATH) as handle:
+        db = json.load(handle)
+    mw = np.array([db[n]["mw"] for n in names], dtype=float)
+    mass_conc = np.asarray(mole_conc, dtype=float) * mw
+    return mass_conc / mass_conc[..., [names.index(SOLVENT_NAME)]]
 
 
 def dissolver_temperature(cake: MixedStream) -> float:
@@ -308,10 +320,11 @@ def build_dissolver(cake: MixedStream) -> ContinuousCrystallizer:
     for k, species in enumerate(CRYSTAL_SPECIES):
         solid_ref = PhaseRef("solid", k)
         kinetics = CrystKinetics(
-            solub_fn=make_solubility_function(names, species),
+            coeff_solub=SOLUBILITY_APELBLAT[species],
+            solubility_type="apelblat",
             nucl_prim=NUCL_PRIM[species], nucl_sec=NUCL_SEC[species],
             growth=GROWTH[species], dissolution=DISSOLUTION[species],
-            solubility_basis="mole_per_volume_solution")
+            solubility_basis=SOLUBILITY_BASIS)
         pbm = tank.Phases.get_phase_from_ref(solid_ref) \
             .get_mechanism(PopulationBalanceMechanism)
         pbm.liquid_phase_ref = liquid_ref
@@ -392,7 +405,7 @@ def history(tank, cake_flow) -> SimpleNamespace:
 
     ``time`` [s]; per species (dicts keyed by name): ``crystal_mass`` held
     [kg], ``crystal_out`` [kg/s], liquid ``conc`` and ``solubility``
-    [mol/L], and ``fraction_dissolved`` [-], 1 - crystals out / crystals
+    [kg/kg L], and ``fraction_dissolved`` [-], 1 - crystals out / crystals
     fed (meaningful at steady state; during start-up it includes the
     crystals the tank is still accumulating).
     """
@@ -401,7 +414,8 @@ def history(tank, cake_flow) -> SimpleNamespace:
     time = np.asarray(res.time)
     vessel_vol = np.ravel(res.vessel_vol)
     vol_flow = np.ravel(tank.outputs["vol_flow"])
-    conc = np.asarray(res.mole_conc_liquid0, dtype=float)
+    conc = mass_per_mass_solvent(
+        names, np.asarray(res.mole_conc_liquid0, dtype=float))
     temp = float(tank.Phases.Liquids[0].temp)
     fed = crystals_fed(cake_flow)
 
@@ -416,8 +430,8 @@ def history(tank, cake_flow) -> SimpleNamespace:
         out.crystal_mass[species] = crystal_kg_m3 * volumes[k]
         out.crystal_out[species] = crystal_kg_m3 * vol_flow
         out.conc[species] = conc[:, names.index(species)]
-        out.solubility[species] = make_solubility_function(names, species)(
-            temp, conc)
+        out.solubility[species] = np.full_like(time, solubility(species,
+                                                                temp))
         out.fraction_dissolved[species] = (1.0 - out.crystal_out[species]
                                            / fed[species])
     return out
@@ -651,11 +665,15 @@ def settings_rows(cake, cake_flow, profiles, balance):
         ("Feeds", f"Fresh {SOLVENT_NAME}",
          f"{L_FLOW * 1e3:g} g/s at {L_TEMPERATURE:g} K"),
         ("Solubility", "Model",
-         f"S0 exp({SOLVENT_K_L:g} [{SOLVENT_NAME}]) mol/L"),
-        ("Solubility", "S0",
-         ", ".join(f"{s} {SOLUBILITY_S0[s]:g}" for s in CRYSTAL_SPECIES)
-         + " mol/L"),
+         f"ln S = A + B/T + C ln T, S in kg/kg {SOLVENT_NAME}, T in K"),
     ]
+    temp = dissolver_temperature(cake)
+    for species in CRYSTAL_SPECIES:
+        a, b, c = SOLUBILITY_APELBLAT[species]
+        rows.append(("Solubility", f"{species} (A, B, C)",
+                     f"({a:g}, {b:g}, {c:g}); S = "
+                     f"{float(solubility(species, temp)):.4g} kg/kg "
+                     f"{SOLVENT_NAME} at {temp:.2f} K"))
     for species in CRYSTAL_SPECIES:
         rows.append((f"Kinetics {species}", "Nucl. / growth / dissol.",
                      f"({kinetics(NUCL_PRIM[species])}) / "
@@ -752,7 +770,7 @@ def print_report(cake, cake_flow, tank, balance: SimpleNamespace):
 
     print(f"  {'species':<8}{'liquid':>10}{'c_sat':>10}{'fed':>10}"
           f"{'held':>10}{'dissolved':>11}")
-    print(f"  {'':<8}{'[mol/L]':>10}{'[mol/L]':>10}{'[g/s]':>10}"
+    print(f"  {'':<8}{'[kg/kgL]':>10}{'[kg/kgL]':>10}{'[g/s]':>10}"
           f"{'[g]':>10}{'[% fed]':>11}")
     for species in CRYSTAL_SPECIES:
         print(f"  {species:<8}{profiles.conc[species][-1]:>10.5f}"

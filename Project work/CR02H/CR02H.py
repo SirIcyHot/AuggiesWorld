@@ -74,7 +74,12 @@ from PharmaPy.Phases_Refactored import LiquidPhase, SolidPhase
 from PharmaPy.Crystallizers_Refactored import ContinuousCrystallizer
 from PharmaPy.Reactive_Crystallizers import ContinuousReactiveCrystallizer
 from PharmaPy.Utilities import CoolingWater
-from CR01H import (
+# CR01H (its feed and settings) and R01H each have their own folder.
+HERE = Path(__file__).resolve().parent          # Project work/CR02H
+sys.path[:0] = [str(HERE.parent / "CR01H"), str(HERE.parent / "R01H")]
+RESULTS_DIR = HERE / "results"
+
+from CR01H import (  # noqa: E402
     ACTIVATION_ENERGIES,
     COOLANT_H_CONV,
     COOLANT_MASS_FLOW,
@@ -95,7 +100,6 @@ from CR01H import (
     REACTOR_H_CONV,
     REACTOR_VOLUME,
     REACTIONS,
-    RESULTS_DIR,
     SERIES_COLORS,
     SOLUBILITY_B1,
     SOLUBILITY_B2,

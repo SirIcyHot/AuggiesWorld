@@ -2,7 +2,7 @@
 
 Each fixture solves the R02R -> F02R -> D03R chain once.
 
-Units: mass flow [kg/s], concentration [mol/L], time [s].
+Units: mass flow [kg/s], concentration and solubility [kg/kg L], time [s].
 """
 
 import json
@@ -33,12 +33,6 @@ def solve(**settings):
 @pytest.fixture(scope="module")
 def default_run():
     return solve()
-
-
-@pytest.fixture(scope="module")
-def no_solvent_effect_run():
-    """K_L = 0: L only dilutes, so far less dissolves."""
-    return solve(SOLVENT_K_L=0.0)
 
 
 def test_l_is_in_the_database():
@@ -130,15 +124,33 @@ def test_only_d_e_j_change_phase(default_run):
             assert balance.to_liquid[j] == pytest.approx(0.0, abs=1e-15), name
 
 
-def test_solvent_effect_drives_the_dissolution(default_run,
-                                               no_solvent_effect_run):
-    _, cake_flow, _, _, with_k = default_run
-    *_, without_k = no_solvent_effect_run
-    with_l = D03R.fraction_dissolved(with_k, cake_flow)
-    without_l = D03R.fraction_dissolved(without_k, cake_flow)
+@pytest.mark.parametrize("species, temp, expected", [
+    ("D", 298.15, 0.14658), ("E", 298.15, 0.21052),
+    ("D", 313.15, 0.20514), ("E", 313.15, 0.24896),
+])
+def test_apelblat_solubility(species, temp, expected):
+    """Hand values of exp(A + B/T + C ln T) [kg/kg L]."""
+    assert float(D03R.solubility(species, temp)) == pytest.approx(
+        expected, rel=1e-3)
 
-    for name in D03R.CRYSTAL_SPECIES:
-        assert without_l[name] < 0.5 * with_l[name], name
+
+def test_kinetics_use_the_apelblat_fit(default_run):
+    """PharmaPy's own solubility equals D03R's, on the kg/kg L basis."""
+    _, _, tank, *_ = default_run
+    temp = float(tank.Phases.Liquids[0].temp)
+    for k, species in enumerate(D03R.CRYSTAL_SPECIES):
+        kinetics = D03R.population_balance(tank, k).mechanism_kinetics
+        assert kinetics.solubility_basis == "mass_per_mass_solvent"
+        assert float(kinetics.get_solubility(temp)) == pytest.approx(
+            float(D03R.solubility(species, temp)), rel=1e-12)
+
+
+def test_liquid_ends_at_or_below_saturation(default_run):
+    """With crystals dissolving, the steady liquid cannot be supersaturated."""
+    *_, profiles, _ = default_run
+    for species in D03R.CRYSTAL_SPECIES:
+        ratio = profiles.conc[species][-1] / profiles.solubility[species][-1]
+        assert ratio <= 1.0 + 1e-3, species
 
 
 def test_figures_are_written(default_run, tmp_path):
