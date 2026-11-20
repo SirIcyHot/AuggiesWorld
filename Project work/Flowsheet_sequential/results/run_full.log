@@ -1,0 +1,86 @@
+Could not find cannot import name 'dopri5' from 'assimulo.lib' (C:\Users\17asi\miniconda3\envs\PharmaPy\Lib\site-packages\assimulo\lib\__init__.py)
+Could not find cannot import name 'rodas' from 'assimulo.lib' (C:\Users\17asi\miniconda3\envs\PharmaPy\Lib\site-packages\assimulo\lib\__init__.py)
+Could not find cannot import name 'odassl' from 'assimulo.lib' (C:\Users\17asi\miniconda3\envs\PharmaPy\Lib\site-packages\assimulo\lib\__init__.py)
+Could not find ODEPACK functions.
+Could not find RADAR5
+Could not find GLIMDA.
+Solving each unit's ConcurrentVessel in process order:
+  CR01H    114 states     0.9 min  (fresh feeds only)
+  CR02H    114 states     1.6 min  (fed by CR01H)
+  D02H     113 states     0.8 min  (fed by CR02H via F01H)
+  D01H     113 states     0.9 min  (fed by D02H via F02H)
+  CR02R    240 states    12.2 min  (fed by D01H)
+  D01R     138 states    12.2 min  (fed by CR02R)
+  D02R      96 states     2.2 min  (fed by D01R via F01R)
+  D03R      96 states     6.0 min  (fed by D02R via F02R)
+
+Sequential solve: 8 ConcurrentVessels, one per unit, 1024 states in all, 481 saved points, t = 16.0 h, 36.8 min wall, linear solver krylov
+
+Streams at the final time [g/s]:
+  stream           T [K]     total  crystals  main components
+  Feed A          293.15    1.0280    0.0000  B 0.809, A 0.219
+  Feed C          293.15    0.2070    0.0000  C 0.1944, B 0.01263
+  CR01H out       286.20    1.2263    0.2864  B 0.8217, F 0.07066, A 0.04581, C 0.001747 | solid F 0.2864
+  A push          293.15    0.1000    0.0000  A 0.1
+  CR02H out       281.01    1.3261    0.3572  B 0.8217, A 0.1443, F 0.002862, C 8.737e-05 | solid F 0.3572
+  F01H cake       281.01    0.4160    0.3536  B 0.05292, A 0.009294, F 0.0001843, C 5.627e-06 | solid F 0.3536
+  Filtrate 1      281.01    0.9101    0.0036  B 0.7688, A 0.135, F 0.002678, C 8.174e-05 | solid F 0.003572
+  W02H wash H     298.15    0.5000    0.0000  H 0.5
+  W02H cake       281.01    0.4114    0.3497  H 0.05483, B 0.005803, A 0.001019, F 6.114e-05 | solid F 0.3497
+  W02H filtrate   281.01    0.5046    0.0035  H 0.4452, B 0.04711, A 0.008275, F 0.0004964 | solid F 0.003532
+  Feed H          298.15    0.5000    0.0000  H 0.5
+  D01H out        281.01    0.9114    0.3493  H 0.5548, B 0.005803, A 0.001019, F 0.0004938 | solid F 0.3493
+  CR02R makeup    303.15   18.1323    0.0000  G 7.966, H 5.274, A 3.579, I 1.314
+  CR02R out       332.95   18.7999    0.0726  G 7.822, H 5.913, A 3.491, I 1.201 | solid F 0.0009188, D 0.02308, E 0.04341, J 0.005178
+  Feed B          298.15   20.0000    0.0000  B 20
+  D01R out        293.15   38.7950    0.3343  B 20.01, G 7.822, H 5.912, A 3.491 | solid D 0.1161, E 0.2181, J 3.787e-06
+  F01R cake       293.15    0.4727    0.3309  B 0.07377, G 0.02884, H 0.0218, A 0.01287 | solid D 0.115, E 0.2159, J 3.75e-06
+  Filtrate 2      293.15   38.3223    0.0033  B 19.93, G 7.793, H 5.89, A 3.479 | solid D 0.001161, E 0.002181
+  W02R wash B     298.15    0.5000    0.0000  B 0.5
+  W02R cake       293.15    0.4681    0.3277  B 0.1255, G 0.006312, H 0.00477, A 0.002817 | solid D 0.1139, E 0.2138
+  W02R filtrate   293.15    0.5047    0.0033  B 0.4482, G 0.02253, H 0.01703, A 0.01006 | solid D 0.00115, E 0.00216
+  Feed L          298.15    8.0000    0.0000  L 8
+  D03R product    293.15    8.4741    0.0011  L 8, E 0.2169, B 0.1257, D 0.116 | solid D 0.0003405, E 0.0007345
+
+Mass closure [g/s], (in - out) at the final time:
+  CR01H   in    1.2350  out    1.2263  gap   0.00869 (  0.70%)
+  CR02H   in    1.3263  out    1.3261  gap   0.00020 (  0.01%)
+  F01H    in    1.3261  out    1.3261  gap   0.00000 (  0.00%)
+  W02H    in    0.9160  out    0.9160  gap  -0.00000 ( -0.00%)
+  D01H    in    0.9114  out    0.9114  gap  -0.00000 ( -0.00%)
+  CR02R   in   19.0437  out   18.7999  gap   0.24381 (  1.28%)
+  D01R    in   38.7999  out   38.7950  gap   0.00488 (  0.01%)
+  F01R    in   38.7950  out   38.7950  gap  -0.00000 ( -0.00%)
+  W02R    in    0.9727  out    0.9728  gap  -0.00003 ( -0.00%)
+  D03R    in    8.4681  out    8.4741  gap  -0.00605 ( -0.07%)
+  Plant   in   48.9673  out   48.7158  gap   0.25149 (  0.51%)
+  F01H link vs ContinuousFilter: 0.00e+00 relative
+
+Wash blocks (cake in -> cake out):
+  W02H: D02H dissolves 0.11% of the 0.3536 g/s of crystals; non-H liquor in the cake 0.0624 -> 0.0069 g/s (89.0% washed out)
+  W02R: D02R dissolves -0.02% of the 0.3309 g/s of crystals; non-B liquor in the cake 0.0681 -> 0.0149 g/s (78.1% washed out)
+
+Key results:
+  D01H dissolves 0.12% of the F crystals fed (0.3497 g/s); CR02R dissolves 99.74% of the 0.3493 g/s left.
+  F reaching CR02R 0.3498 g/s, against 1.8677 g/s in R02R's standalone feed; 99.7% converted.
+  CR02R crystallizes D 19.5%, E 19.6%, J 19.4% of the products it makes.
+  D01R dissolves 99.93% of CR02R's 0.0052 g/s of J crystals.
+  Dissolved inside links: F crystals CR02R -> D01R 9.19e-04 g/s, J crystals in the F01R cake -> D02R 3.75e-06 g/s.
+  D03R D: crystals fed 0.1139 g/s, leaving 0.0003 g/s, 99.7% of the D in the product is dissolved.
+  D03R E: crystals fed 0.2138 g/s, leaving 0.0007 g/s, 99.7% of the E in the product is dissolved.
+
+Change over the last 10 % of the run (settled below ~1 %):
+  CR01H       0.00%
+  CR02H       0.00%
+  D02H        0.00%
+  D01H        0.00%
+  CR02R       0.51%
+  D01R        0.18%
+  D02R        0.19%
+  D03R        0.30%
+
+Dissolved inside the feeds [g/s] (unmatched solids):
+  -> D01R   9.188e-04
+  -> D02R   3.750e-06
+
+Figures saved to C:\Users\17asi\Coding\AuggiesWorld\Project work\Flowsheet_sequential\results

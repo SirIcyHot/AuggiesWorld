@@ -1,0 +1,5 @@
+step test: 34.7 min, saved C:\Users\17asi\Coding\AuggiesWorld\Project work\CR02R\results\control\plant_step_test.npz
+  16 ms per column, ~0.2 min for 818 states
+linearization: 818 states, 0.2 min, |f(x0)|/|x0| = 1.73e-04, saved C:\Users\17asi\Coding\AuggiesWorld\Project work\CR02R\results\control\plant_linearization.npz
+  16 ms per column, ~0.2 min for 818 states
+linearization: 818 states, 0.2 min, |f(x0)|/|x0| = 1.73e-04, saved C:\Users\17asi\Coding\AuggiesWorld\Project work\CR02R\results\control\plant_linearization.npz

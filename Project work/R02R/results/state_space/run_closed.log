@@ -1,0 +1,7 @@
+﻿
+closed loop, PI (Kc 4, Ti 209.0 s): 64 s
+closed loop, LQG (lqg): 71 s
+closed loop, LQG (lqgd): 73 s
+saved closed_loop.npz
+
+

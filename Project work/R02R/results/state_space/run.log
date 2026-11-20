@@ -1,0 +1,10 @@
+﻿
+steady state: run 2 s, |f| 4.28e-06 -> 2.02e-16 after 2 Newton steps, T0 = 337.5897 K
+linearization: 14 states in 0.0 s, |f(x0)| = 2.02e-16
+open loop: 5 s, saved open_loop.npz
+closed loop, PI (Kc 4, Ti 209.0 s): 5 s
+closed loop, LQG (lqg): 6 s
+closed loop, LQG (lqgd): 7 s
+saved closed_loop.npz
+
+

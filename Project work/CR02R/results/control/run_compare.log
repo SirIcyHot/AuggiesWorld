@@ -1,0 +1,7 @@
+CR02R as a one-member ConcurrentVessel, 10.0 h:
+  open     P level, open-loop T (PharmaPy default)  wall 1536.1 s | T end  59.78 C | V offset     -2.56 mL
+  pi       PI level, open-loop T                    wall 1782.2 s | T end  59.78 C | V offset     -0.00 mL
+  jacket   PI level, PI jacket T                    wall 1634.8 s | T end  55.00 C | V offset     -0.00 mL | T offset +0.000 K, overshoot 9.0%, 2% settling 10.0 min
+  imposed  PI level, imposed T                      wall 1440.0 s | T end  55.00 C | V offset     -0.00 mL | T offset +0.000 K, overshoot 0.0%, 2% settling 0.0 min
+  saved C:\Users\17asi\Coding\AuggiesWorld\Project work\CR02R\results\control\CR02R_control.png
+  saved C:\Users\17asi\Coding\AuggiesWorld\Project work\CR02R\results\control\CR02R_integrals.png
